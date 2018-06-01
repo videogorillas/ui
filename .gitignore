@@ -69,3 +69,5 @@ local.properties
 .buildpath
 /release.properties
 /pom.xml.releaseBackup
+/dist/
+/node_modules/

@@ -71,3 +71,4 @@ local.properties
 /pom.xml.releaseBackup
 /dist/
 /node_modules/
+/.cache/

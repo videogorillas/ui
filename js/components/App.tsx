@@ -22,6 +22,10 @@ export default class App extends React.Component<AppProps, Object> {
     }
 
     render () {
-        return <div><Ranges ranges={[{start: 0, end: 42, label: "kuku"}, {start: 42, end: 47, label: "kuku1"}]}/></div>
+        return <div><Ranges ranges={[{start : 0, end : 42, label : "kuku"}, {start : 42, end : 57, label : "kuku1"}, {
+            start : 57,
+            end : 87,
+            label : "kuku1"
+        }]}/></div>
     }
 }

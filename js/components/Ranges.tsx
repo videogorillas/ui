@@ -2,7 +2,7 @@
 import * as React from 'react';
 import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs";
-import {filter, flatMap, map, takeUntil} from "rxjs/operators";
+import {filter, flatMap, map, reduce, sample, takeUntil, window} from "rxjs/operators";
 import {rect, SVGRectUtil} from "../utils/SvgUtils";
 
 interface RangesProps {
@@ -16,6 +16,7 @@ const defaultColors = ["rgb(0,0,255)", "rgb(0,255,0)"];
 
 interface RangesState {
     activeRangeIndex: number;
+    ranges: LabeledRange[];
 }
 
 export default class Ranges extends React.Component<RangesProps, RangesState> {
@@ -25,9 +26,15 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     };
     private svgRef: React.RefObject<any> = React.createRef();
 
-    state: RangesState = {
-        activeRangeIndex : -1
-    };
+
+    constructor (props: RangesProps) {
+        super(props);
+        this.state = {
+            activeRangeIndex : -1,
+            ranges : props.ranges
+        };
+    }
+
 
     get unit () {
         return 1 / this.props.end;
@@ -41,15 +48,15 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     }
 
     get _range (): LabeledRange {
-        return this.props.ranges[this.state.activeRangeIndex];
+        return this.state.ranges[this.state.activeRangeIndex];
     }
 
     get _nextRange (): LabeledRange {
-        return this.props.ranges[this.state.activeRangeIndex + 1];
+        return this.state.ranges[this.state.activeRangeIndex + 1];
     }
 
     get _prevRange (): LabeledRange {
-        return this.props.ranges[this.state.activeRangeIndex - 1];
+        return this.state.ranges[this.state.activeRangeIndex - 1];
     }
 
     componentDidMount () {
@@ -61,12 +68,14 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
 
         fromEvent<MouseEvent>(document, 'mousedown')
             .pipe(flatMap<MouseEvent, any>(e => {
+                let i = this.state.activeRangeIndex;
+                console.log('doc', this.state.activeRangeIndex);
                 const r: SVGRectUtil = rect(e.target);
                 const x = e.clientX;
                 const left = r.x;
                 const w = r.width;
                 const right = left + w;
-
+                const range = {};
                 return move.pipe(filter(x => this._range), map<MouseEvent, any>(mm => {
                     const deltaX = mm.clientX - e.clientX;
                     const next = r.next;
@@ -79,8 +88,13 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
                             next.x = dL + next.x;
                             const w = next.width - dL;
                             next.width = Math.max(w, 0);
+                            // nextRange.start = this.pxToRUnit(next.x);
+                            // console.log('next start', nextRange.start | 0);
                         }
                         r.width = rw;
+                        const end = this.pxToRUnit(r.right) | 0;
+                        range.end = end;
+                        console.log(end);
                     } else {
                         //dragging leftwards
                         const x = Math.min(left + deltaX, right);
@@ -89,16 +103,17 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
                             const dW = prev.right - x;
                             prev.width = Math.max(prev.width - dW, 0);
                         }
-                        r.x = x;
+                        r.x = Math.max(x, 0);
                         r.width = rw;
+                        // this._range.start = this.pxToRUnit(r.x);
                     }
 
-                    return 0;
+                    console.log('move', deltaX);
+                    return deltaX;
                 }), takeUntil(up));
-            }))
+            }), sample(up))
             .subscribe(rw => {
-                const end = rw / (this.unit * this._width);
-                // console.log(end | 0);
+                console.log('subscribe', rw);
             });
 
         const source = fromEvent<KeyboardEvent>(document, 'keydown').subscribe(e => {
@@ -119,9 +134,13 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
 
     }
 
+    private pxToRUnit (px: number) {
+        return px / (this.unit * this._width);
+    }
+
     render () {
         return (<div>
-            <svg style={{width : "100%"}} ref={this.svgRef}>
+            <svg onMouseDown={() => console.log('svg')} style={{width : "100%"}} ref={this.svgRef}>
                 {this.renderRanges()}
             </svg>
         </div>);
@@ -132,20 +151,19 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
             return null;
         }
 
-        return this.props.ranges.map((range, i) => {
+        return this.state.ranges.map((range, i) => {
             return (<rect x={this.getX(range)}
                           y="0"
                           width={this.getWidth(range)} height="100"
                           style={{fill : this.getColor(range, i)}}
                           key={`${range.start}-${range.end}-${range.label}`}
-                          onMouseDownCapture={this.activateRange.bind(this, i)}
+                          onMouseDown={this.activateRange.bind(this, i)}
             />)
         });
 
     }
 
     private activateRange (n: number) {
-        console.log("activate");
         this.setState({activeRangeIndex : n});
     }
 
@@ -164,5 +182,6 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     private getX (range: LabeledRange): number {
         return range.start * this.unit * this._width;
     }
+
 
 }

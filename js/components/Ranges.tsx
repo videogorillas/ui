@@ -1,7 +1,9 @@
+///<reference path="../utils/SvgUtils.ts"/>
 import * as React from 'react';
 import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs";
 import {filter, flatMap, map, takeUntil} from "rxjs/operators";
+import {rect, SVGRectUtil} from "../utils/SvgUtils";
 
 interface RangesProps {
     ranges: LabeledRange[];
@@ -42,6 +44,14 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         return this.props.ranges[this.state.activeRangeIndex];
     }
 
+    get _nextRange (): LabeledRange {
+        return this.props.ranges[this.state.activeRangeIndex + 1];
+    }
+
+    get _prevRange (): LabeledRange {
+        return this.props.ranges[this.state.activeRangeIndex - 1];
+    }
+
     componentDidMount () {
         if (this.svgRef.current) {
             this.forceUpdate();
@@ -51,21 +61,36 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
 
         fromEvent<MouseEvent>(document, 'mousedown')
             .pipe(flatMap<MouseEvent, any>(e => {
-                const rect: SVGRectElement = e.target;
+                const r: SVGRectUtil = rect(e.target);
                 const x = e.clientX;
-                const left = rect.x.baseVal.value;
-                const w = rect.width.baseVal.value;
+                const left = r.x;
+                const w = r.width;
                 const right = left + w;
+
                 return move.pipe(filter(x => this._range), map<MouseEvent, any>(mm => {
                     const deltaX = mm.clientX - e.clientX;
+                    const next = r.next;
+                    const prev = r.prev;
+                    //dragging rightwards
                     if (x > (left + right) / 2) {
                         const rw = Math.max(w + deltaX, 0);
-                        rect.setAttribute("width", `${rw}`);
+                        if (next && (r.right) > next.x) {
+                            const dL = r.x + rw - next.x;
+                            next.x = dL + next.x;
+                            const w = next.width - dL;
+                            next.width = Math.max(w, 0);
+                        }
+                        r.width = rw;
                     } else {
+                        //dragging leftwards
                         const x = Math.min(left + deltaX, right);
-                        rect.setAttribute("x", `${x}`);
                         const rw = Math.max(w - deltaX, 0);
-                        rect.setAttribute("width", `${rw}`);
+                        if (prev && x < prev.right) {
+                            const dW = prev.right - x;
+                            prev.width = Math.max(prev.width - dW, 0);
+                        }
+                        r.x = x;
+                        r.width = rw;
                     }
 
                     return 0;
@@ -96,7 +121,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
 
     render () {
         return (<div>
-            <svg style={{width : "50%"}} ref={this.svgRef}>
+            <svg style={{width : "100%"}} ref={this.svgRef}>
                 {this.renderRanges()}
             </svg>
         </div>);

@@ -4,6 +4,14 @@ export interface SVGRectUtil {
     right: number;
     next: SVGRectUtil;
     prev: SVGRectUtil;
+
+    isLeft (x: number): boolean;
+
+    isRight (x: number): boolean;
+
+    changeLeft (withX: number): void;
+
+    changeRight (withX: number): void;
 }
 
 class SVGRectUtils implements SVGRectUtil {
@@ -14,7 +22,7 @@ class SVGRectUtils implements SVGRectUtil {
         return this.svg ? this.svg.width.baseVal.value : 0;
     }
 
-    set width (w: number) {
+    set _width (w: number) {
         if (w <= 0) {
             this.svg.remove();
         }
@@ -34,15 +42,38 @@ class SVGRectUtils implements SVGRectUtil {
     }
 
     get next (): SVGRectUtil {
-        return rect(<SVGRectElement>this.svg.nextElementSibling);
+        return rectUtil(<SVGRectElement>this.svg.nextElementSibling);
     }
 
     get prev (): SVGRectUtil {
-        return rect(<SVGRectElement>this.svg.previousElementSibling);
+        return rectUtil(<SVGRectElement>this.svg.previousElementSibling);
+    }
+
+    get half () {
+        return this.x + this.width / 2;
+    }
+
+    isLeft (x: number): boolean {
+        return this.x < x && x < this.half;
+    }
+
+    isRight (x: number): boolean {
+        return x >= this.half && x < this.right;
+    }
+
+    changeRight (deltaX: number): void {
+        const dx = Math.max(deltaX, this.width * -1);
+        this._width = this.width + dx;
+    }
+
+    changeLeft (deltaX: number): void {
+        const dX = Math.min(this.width, Math.max(deltaX, this.width * -1));
+        this.x += dX;
+        this._width = this.width - dX;
     }
 }
 
-export function rect (svg: SVGRectElement): SVGRectUtil {
+export function rectUtil (svg: SVGRectElement): SVGRectUtil {
     if (!svg) {
         return null;
     }

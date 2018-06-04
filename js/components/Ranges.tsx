@@ -3,7 +3,7 @@ import * as React from 'react';
 import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs";
 import {filter, flatMap, map, reduce, sample, takeUntil, window} from "rxjs/operators";
-import {rect, SVGRectUtil} from "../utils/SvgUtils";
+import {rectUtil, SVGRectUtil} from "../utils/SvgUtils";
 
 interface RangesProps {
     ranges: LabeledRange[];
@@ -65,49 +65,38 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         }
         const move = fromEvent<MouseEvent>(document, 'mousemove');
         const up = fromEvent(document, 'mouseup');
-
-        fromEvent<MouseEvent>(document, 'mousedown')
+        const svgLeft = this.svgRef.current.getBoundingClientRect().left;
+        fromEvent<MouseEvent>(this.svgRef.current, 'mousedown')
             .pipe(flatMap<MouseEvent, any>(e => {
                 let i = this.state.activeRangeIndex;
-                console.log('doc', this.state.activeRangeIndex);
-                const r: SVGRectUtil = rect(e.target);
-                const x = e.clientX;
-                const left = r.x;
-                const w = r.width;
-                const right = left + w;
+                console.log('doc', e.clientX - svgLeft);
+                const rect: SVGRectUtil = rectUtil(e.target);
+                const rightSide = rect.isRight(e.clientX - svgLeft);
                 const range = {};
+                let x = e.clientX;
                 return move.pipe(filter(x => this._range), map<MouseEvent, any>(mm => {
-                    const deltaX = mm.clientX - e.clientX;
-                    const next = r.next;
-                    const prev = r.prev;
+                    const deltaX = mm.clientX - x;
+                    x = mm.clientX;
                     //dragging rightwards
-                    if (x > (left + right) / 2) {
-                        const rw = Math.max(w + deltaX, 0);
-                        if (next && (r.right) > next.x) {
-                            const dL = r.x + rw - next.x;
-                            next.x = dL + next.x;
-                            const w = next.width - dL;
-                            next.width = Math.max(w, 0);
-                            // nextRange.start = this.pxToRUnit(next.x);
-                            // console.log('next start', nextRange.start | 0);
+                    if (rightSide) {
+                        rect.changeRight(deltaX);
+                        const next = rect.next;
+                        if (next && rect.right > next.x) {
+                            next.changeLeft(deltaX);
                         }
-                        r.width = rw;
-                        const end = this.pxToRUnit(r.right) | 0;
-                        range.end = end;
-                        console.log(end);
+                        // const end = this.pxToRUnit(rect.right) | 0;
+                        // range.end = end;
+                        // console.log(end);
                     } else {
+                        console.log('left');
                         //dragging leftwards
-                        const x = Math.min(left + deltaX, right);
-                        const rw = Math.max(w - deltaX, 0);
-                        if (prev && x < prev.right) {
-                            const dW = prev.right - x;
-                            prev.width = Math.max(prev.width - dW, 0);
+                        rect.changeLeft(deltaX);
+                        const prev = rect.prev;
+                        if (prev && prev.isRight(rect.x)) {
+                            prev.changeRight(deltaX);
                         }
-                        r.x = Math.max(x, 0);
-                        r.width = rw;
                         // this._range.start = this.pxToRUnit(r.x);
                     }
-
                     console.log('move', deltaX);
                     return deltaX;
                 }), takeUntil(up));

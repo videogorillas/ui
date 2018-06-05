@@ -1,20 +1,7 @@
-///<reference path="../utils/SvgUtils.ts"/>
 import * as React from 'react';
 import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs";
-import {
-    exhaust,
-    filter,
-    flatMap,
-    groupBy,
-    map,
-    mergeMap,
-    reduce,
-    sample,
-    takeUntil,
-    toArray,
-    window
-} from "rxjs/operators";
+import {filter, flatMap, map, sample, takeUntil} from "rxjs/operators";
 import {rectUtil, SVGRectUtil} from "../utils/SvgUtils";
 
 interface RangesProps {
@@ -78,84 +65,42 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         const move = fromEvent<MouseEvent>(document, 'mousemove');
         const up = fromEvent(document, 'mouseup');
         const svgLeft = this.svgRef.current.getBoundingClientRect().left;
-        fromEvent<MouseEvent>(document, 'mousedown')
-            .pipe(flatMap<MouseEvent, any>(e => {
-                const rect: SVGRectUtil = rectUtil(e.target);
-                const rightSide = rect.isRight(e.clientX - svgLeft);
-                let x = e.clientX;
-
-                return move.pipe(filter(x => this._range), map<MouseEvent, any>(mm => {
-                        const deltaX = mm.clientX - x;
-                        x = mm.clientX;
-                        //TODO: do not decrease width < 10px
-                        //dragging rightwards
-                        if (rightSide) {
-                            rect.changeRight(deltaX);
-                            const next = rect.next;
-                            if (next && rect.right > next.x) {
-                                next.changeLeft(deltaX);
+        fromEvent(document, 'mousedown')
+            .pipe(filter((e: MouseEvent) => e.target instanceof SVGRectElement),
+                flatMap((e: MouseEvent) => {
+                    const rect: SVGRectUtil = rectUtil(e.target as SVGRectElement);
+                    const rightSide = rect.isRight(e.clientX - svgLeft);
+                    let x = e.clientX;
+                    return move.pipe(
+                        map<MouseEvent, SVGRectUtil>((mm: MouseEvent) => {
+                            const deltaX = mm.clientX - x;
+                            x = mm.clientX;
+                            if (rightSide) {
+                                rect.changeRight(deltaX);
+                            } else {
+                                rect.changeLeft(deltaX);
                             }
-                        } else {
-                            //dragging leftwards
-                            rect.changeLeft(deltaX);
-                            const prev = rect.prev;
-                            if (prev && rect.x < prev.right) {
-                                prev.changeRight(deltaX);
-                            }
-                        }
-                        return deltaX;
-                    }),
-                    takeUntil(up),
-                    reduce((acc, deltaX) => {
-                        const x = acc + deltaX;
-                        return x;
-                    }),
-                    map(x => {
-                        console.log(x);
-                        return {x};
-                    })
-                );
-            }))
-            .subscribe(t => {
-                // const ranges = [...this.state.ranges];
-                // let i = this.state.activeRangeIndex;
-                // const range = ranges[i];
-                // const next = ranges[i + 1];
-                // const prev = ranges[i - 1];
-                // const deltaU = Math.round(this.pxToRUnit(t.x));
-                // if (t.right) {
-                //     range.end += deltaU;
-                //     if (next && range.end > next.start) {
-                //         next.start += deltaU;
-                //     }
-                // } else {
-                //     range.start += deltaU;
-                //     if (prev && range.start < prev.end) {
-                //         prev.end += deltaU;
-                //     }
-                // }
-                // console.log(ranges);
-                console.log('subscribe', t);
-                // this.setState({ranges});
-
+                            return rect;
+                        }),
+                        takeUntil(up)
+                    );
+                }),
+                sample(up))
+            .subscribe((rect: SVGRectUtil) => {
+                const ranges = [...this.state.ranges];
+                let i = this.state.activeRangeIndex;
+                const width = Math.round(this.pxToRUnit(rect.width));
+                if (width <= 0) {
+                    ranges.splice(i, 1);
+                    i = -1;
+                } else {
+                    const range = ranges[i];
+                    const start = Math.round(this.pxToRUnit(rect.x));
+                    range.start = start;
+                    range.end = start + width;
+                }
+                this.setState({ranges, activeRangeIndex : i});
             });
-
-        const source = fromEvent<KeyboardEvent>(document, 'keydown').subscribe(e => {
-            console.log(e);
-            //TODO: update svg
-            // if (this._range) {
-            //     switch (e.key) {
-            //         case "ArrowRight":
-            //             this._range.start += 1;
-            //             break;
-            //         case "ArrowLeft":
-            //             this._range.end -= 1;
-            //             break;
-            //     }
-            // }
-            //TODO: update state
-        });
-
     }
 
     private pxToRUnit (px: number) {
@@ -164,7 +109,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
 
     render () {
         return (<div>
-            <svg onMouseDown={() => console.log('svg')} style={{width : "100%"}} ref={this.svgRef}>
+            <svg style={{width : "100%"}} ref={this.svgRef}>
                 {this.renderRanges()}
             </svg>
         </div>);
@@ -207,6 +152,4 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     private getX (range: LabeledRange): number {
         return range.start * this.unit * this._width;
     }
-
-
 }

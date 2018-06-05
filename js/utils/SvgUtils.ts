@@ -23,10 +23,9 @@ class SVGRectUtils implements SVGRectUtil {
     }
 
     set _width (w: number) {
-        if (w <= 0) {
-            this.svg.remove();
+        if (w > 0) {
+            this.svg.setAttribute("width", `${w}`);
         }
-        this.svg.setAttribute("width", `${w}`);
     }
 
     get x () {
@@ -62,22 +61,22 @@ class SVGRectUtils implements SVGRectUtil {
     }
 
     changeRight (deltaX: number): void {
-        const dx = Math.max(deltaX, (this.width) * -1);
+        let dx = Math.max(deltaX, (this.width) * -1);
+        const next = this.next;
+        if (next) {
+            dx = Math.min(dx, next.x - this.right);
+        }
         this._width = this.width + dx;
-        // const next = this.next;
-        // if (next && this.right > next.x) {
-        //     next.changeLeft(deltaX);
-        // }
     }
 
     changeLeft (deltaX: number): void {
-        const dX = Math.min(this.width, Math.max(deltaX, this.width * -1));
-        this.x += dX;
-        this._width = this.width - dX;
-        // const prev = this.prev;
-        // if (prev && this.x < prev.right) {
-        //     prev.changeRight(deltaX);
-        // }
+        let dx = Math.min(this.width, Math.max(deltaX, this.width * -1));
+        const prev = this.prev;
+        if (prev) {
+            dx = Math.max(dx, prev.right - this.x);
+        }
+        this.x += dx;
+        this._width = this.width - dx;
     }
 }
 

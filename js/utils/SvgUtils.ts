@@ -62,14 +62,22 @@ class SVGRectUtils implements SVGRectUtil {
     }
 
     changeRight (deltaX: number): void {
-        const dx = Math.max(deltaX, this.width * -1);
+        const dx = Math.max(deltaX, (this.width) * -1);
         this._width = this.width + dx;
+        // const next = this.next;
+        // if (next && this.right > next.x) {
+        //     next.changeLeft(deltaX);
+        // }
     }
 
     changeLeft (deltaX: number): void {
         const dX = Math.min(this.width, Math.max(deltaX, this.width * -1));
         this.x += dX;
         this._width = this.width - dX;
+        // const prev = this.prev;
+        // if (prev && this.x < prev.right) {
+        //     prev.changeRight(deltaX);
+        // }
     }
 }
 

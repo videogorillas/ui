@@ -2,7 +2,19 @@
 import * as React from 'react';
 import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs";
-import {filter, flatMap, map, reduce, sample, takeUntil, window} from "rxjs/operators";
+import {
+    exhaust,
+    filter,
+    flatMap,
+    groupBy,
+    map,
+    mergeMap,
+    reduce,
+    sample,
+    takeUntil,
+    toArray,
+    window
+} from "rxjs/operators";
 import {rectUtil, SVGRectUtil} from "../utils/SvgUtils";
 
 interface RangesProps {
@@ -66,43 +78,66 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         const move = fromEvent<MouseEvent>(document, 'mousemove');
         const up = fromEvent(document, 'mouseup');
         const svgLeft = this.svgRef.current.getBoundingClientRect().left;
-        fromEvent<MouseEvent>(this.svgRef.current, 'mousedown')
+        fromEvent<MouseEvent>(document, 'mousedown')
             .pipe(flatMap<MouseEvent, any>(e => {
-                let i = this.state.activeRangeIndex;
-                console.log('doc', e.clientX - svgLeft);
                 const rect: SVGRectUtil = rectUtil(e.target);
                 const rightSide = rect.isRight(e.clientX - svgLeft);
-                const range = {};
                 let x = e.clientX;
+
                 return move.pipe(filter(x => this._range), map<MouseEvent, any>(mm => {
-                    const deltaX = mm.clientX - x;
-                    x = mm.clientX;
-                    //dragging rightwards
-                    if (rightSide) {
-                        rect.changeRight(deltaX);
-                        const next = rect.next;
-                        if (next && rect.right > next.x) {
-                            next.changeLeft(deltaX);
+                        const deltaX = mm.clientX - x;
+                        x = mm.clientX;
+                        //TODO: do not decrease width < 10px
+                        //dragging rightwards
+                        if (rightSide) {
+                            rect.changeRight(deltaX);
+                            const next = rect.next;
+                            if (next && rect.right > next.x) {
+                                next.changeLeft(deltaX);
+                            }
+                        } else {
+                            //dragging leftwards
+                            rect.changeLeft(deltaX);
+                            const prev = rect.prev;
+                            if (prev && rect.x < prev.right) {
+                                prev.changeRight(deltaX);
+                            }
                         }
-                        // const end = this.pxToRUnit(rect.right) | 0;
-                        // range.end = end;
-                        // console.log(end);
-                    } else {
-                        console.log('left');
-                        //dragging leftwards
-                        rect.changeLeft(deltaX);
-                        const prev = rect.prev;
-                        if (prev && prev.isRight(rect.x)) {
-                            prev.changeRight(deltaX);
-                        }
-                        // this._range.start = this.pxToRUnit(r.x);
-                    }
-                    console.log('move', deltaX);
-                    return deltaX;
-                }), takeUntil(up));
-            }), sample(up))
-            .subscribe(rw => {
-                console.log('subscribe', rw);
+                        return deltaX;
+                    }),
+                    takeUntil(up),
+                    reduce((acc, deltaX) => {
+                        const x = acc + deltaX;
+                        return x;
+                    }),
+                    map(x => {
+                        console.log(x);
+                        return {x};
+                    })
+                );
+            }))
+            .subscribe(t => {
+                // const ranges = [...this.state.ranges];
+                // let i = this.state.activeRangeIndex;
+                // const range = ranges[i];
+                // const next = ranges[i + 1];
+                // const prev = ranges[i - 1];
+                // const deltaU = Math.round(this.pxToRUnit(t.x));
+                // if (t.right) {
+                //     range.end += deltaU;
+                //     if (next && range.end > next.start) {
+                //         next.start += deltaU;
+                //     }
+                // } else {
+                //     range.start += deltaU;
+                //     if (prev && range.start < prev.end) {
+                //         prev.end += deltaU;
+                //     }
+                // }
+                // console.log(ranges);
+                console.log('subscribe', t);
+                // this.setState({ranges});
+
             });
 
         const source = fromEvent<KeyboardEvent>(document, 'keydown').subscribe(e => {
@@ -153,6 +188,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     }
 
     private activateRange (n: number) {
+        console.log('rect');
         this.setState({activeRangeIndex : n});
     }
 

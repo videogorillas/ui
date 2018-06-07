@@ -175,7 +175,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
             const tail = {...closest};
             closest.end = range.start;
             tail.start = range.end;
-            if (range.start - range.end > 0) {
+            if (range.end - range.start > 0) {
                 ranges.splice(i + 1, 0, range, tail);
             } else {
                 ranges.splice(i + 1, 0, tail);

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8">
+    <title>VG Player</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="vgplayer.min.css">
+    <script type="text/javascript" src="vgplayer.js"></script>
+    <style>
+        .vg_frozen_container {
+            display: none;
+        }
+    </style>
+
+</head>
+<body>
+<div id="pCont"></div>
+
+<script>
+
+    function initAndLoadPlayer(videoUrl, srtUrl) {
+        let pConfig = {
+            hotkeys: true,
+            playlist: false,
+            search: false,
+            theme: 'vg',
+            plugins: ['filmstrip']
+        };
+        let player = new VG.Player(pCont, pConfig);
+
+        player.loadUrl(videoUrl, (err) => {
+            VG.Captions.parseSubs(player.getTimeline(), srtUrl, 'srt', (err, subs) => {
+                if (err) {
+                    console.error("error parsing subs", err);
+                    return;
+                }
+                console.log("SRT OK");
+                player.addCaptions(subs);
+                player.play();
+            });
+
+        });
+    }
+
+
+    let url = new URL(document.URL);
+    let jobId = url.searchParams.get("jobid");
+
+    if (jobId != null) {
+        let xhr = new XMLHttpRequest();
+        xhr.open("GET", "/api/1/classifier/result/" + jobId, true);
+        xhr.onreadystatechange = () => {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                let result = JSON.parse(xhr.responseText);
+
+                if (result != null) {
+                    let videoUrl = result['media_url'];
+                    let srtUrl = result['srt'];
+                    initAndLoadPlayer(videoUrl, srtUrl);
+                } else {
+                    let div = document.createElement("div");
+                    div.innerText = "job is not finished yet";
+                    document.body.appendChild(div);
+                }
+            }
+        };
+        xhr.send();
+    } else {
+        let videoUrl = url.searchParams.get("url");
+        let srtUrl = url.searchParams.get("srt");
+        initAndLoadPlayer(videoUrl, srtUrl);
+    }
+
+
+</script>
+</body>

@@ -19,7 +19,7 @@ class SVGRectUtils implements SVGRectUtil {
     }
 
     get width () {
-        return this.svg ? this.svg.width.baseVal.value : 0;
+        return this.svg && this.svg.width ? this.svg.width.baseVal.value : 0;
     }
 
     set _width (w: number) {
@@ -29,7 +29,7 @@ class SVGRectUtils implements SVGRectUtil {
     }
 
     get x () {
-        return this.svg ? this.svg.x.baseVal.value : 0;
+        return this.svg && this.svg.x ? this.svg.x.baseVal.value : 0;
     }
 
     set x (x: number) {
@@ -81,7 +81,7 @@ class SVGRectUtils implements SVGRectUtil {
 }
 
 export function rectUtil (svg: SVGRectElement): SVGRectUtil {
-    if (!svg) {
+    if (!svg || !(svg instanceof SVGRectElement)) {
         return null;
     }
     return new SVGRectUtils(svg);

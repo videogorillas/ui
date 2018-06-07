@@ -166,9 +166,47 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     }
 
     private insertNewRange (ranges: LabeledRange[], range: LabeledRange) {
-        // console.log(this.findClosest(range.start, ranges));
-        ranges.push(range);
-        ranges.sort(this.sortRanges);
+        //closest left range
+        const closest = this.findClosest(range.start, ranges);
+        const i = ranges.indexOf(closest);
+
+        // split closest range
+        if (closest.start < range.start && range.end < closest.end) {
+            const tail = {...closest};
+            closest.end = range.start;
+            tail.start = range.end;
+            if (range.start - range.end > 0) {
+                ranges.splice(i + 1, 0, range, tail);
+            } else {
+                ranges.splice(i + 1, 0, tail);
+            }
+
+            console.log(closest, range, tail, i);
+            return
+        }
+
+        //insert range after closest
+        //in the gap between two ranges
+        const next = ranges[i + 1];
+        if (next && range.start > closest.end && range.end < next.start) {
+            ranges.splice(i + 1, 0, range);
+            return;
+        }
+
+        // overlap with next ranges
+        if (next && range.end > next.start) {
+            //closest right range
+            const nextClosest = this.findClosest(range.end, ranges);
+            const j = ranges.indexOf(nextClosest);
+            const tail = {...nextClosest};
+            tail.start = range.end;
+
+            // overlap left closest
+            if (range.start < closest.end) {
+                closest.end = range.start;
+            }
+            ranges.splice(i + 1, j - i, range, tail);
+        }
     }
 
     private markIn (x: number, r: LabeledRange) {

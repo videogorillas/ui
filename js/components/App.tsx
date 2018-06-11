@@ -4,6 +4,7 @@ import Ranges from "./Ranges";
 import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs/index";
 import {jsonlIterator} from "../utils/FetchUtils";
+import ClassCaptions from "./ClassCaptions";
 
 type JsonResult = [number, [number, number]];
 
@@ -140,9 +141,7 @@ export default class App extends React.Component<AppProps, AppState> {
             <div ref={this.containerRef}>
 
             </div>
-            <div>
-                {this.classes[this.predictions[frame]]}
-            </div>
+            <ClassCaptions classes={this.classes} predictions={this.predictions} current={frame}/>
             {this.state.ranges.length > 0 ?
                 <Ranges pointer={frame}
                         ranges={this.state.ranges} end={this.state.total}

@@ -35,6 +35,17 @@ export default class App extends React.Component<AppProps, AppState> {
         saveFile(blob, 'test.jsonl');
     };
 
+    updatePrediction = (updated: LabeledRange[]) => {
+        console.log(updated);
+        console.log(this.predictions);
+    };
+
+    deletePrediction = (deleted: LabeledRange[]) => {
+        const start = deleted[0].start;
+        const end = deleted[deleted.length - 1].end;
+        this.predictions.fill(undefined, start, end);
+    };
+
     async fetchJsonl (url: string) {
         const response = await fetch(url);
         const jsonlText = await response.text();
@@ -137,6 +148,8 @@ export default class App extends React.Component<AppProps, AppState> {
                 <Ranges pointer={frame}
                         ranges={this.state.ranges} end={this.state.total}
                         onClick={this.onSelectFrame}
+                        onChangeRanges={this.updatePrediction}
+                        onDeleteRanges={this.deletePrediction}
                 />
                 : null
             }

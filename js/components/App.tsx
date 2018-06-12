@@ -37,12 +37,20 @@ export default class App extends React.Component<AppProps, AppState> {
 
     updatePrediction = (updated: LabeledRange[]) => {
         console.log(updated);
+        for (const range of updated) {
+            for (let i = range.start; i < range.end; i++) {
+                const predict: [number, number] = [0, 0];
+                predict[+range.label] = 1;
+                this.predictions[i] = [i, predict];
+            }
+        }
         console.log(this.predictions);
     };
 
     deletePrediction = (deleted: LabeledRange[]) => {
         const start = deleted[0].start;
         const end = deleted[deleted.length - 1].end;
+        console.log("deleted", start, end, deleted);
         this.predictions.fill(undefined, start, end);
     };
 
@@ -56,8 +64,14 @@ export default class App extends React.Component<AppProps, AppState> {
 
     componentDidMount () {
         // TODO: dynamic URL
-        const url = 'cruz-smoking.jsonl';
-        this.fetchJsonl(url);
+        // const url = 'cruz-smoking.jsonl';
+        const url = 'LFA123.mp4.out.json';
+        fetch(url).then(r => r.json()).then(async json => {
+            this.predictions = json;
+            const ranges = await jsonToRanges(this.predictions);
+            this.setState({ranges});
+        })
+        // this.fetchJsonl(url);
 
         const kdown = fromEvent<MouseEvent>(document, 'keydown');
 
@@ -94,8 +108,8 @@ export default class App extends React.Component<AppProps, AppState> {
     private setupPlayer (el: HTMLElement, pConfig: any) {
         const player = new VG.Player(el, pConfig);
 
-        // const mp4 = "http://10.0.1.140/bstorage/home/chexov/testvideo/LFA.mp4";
-        const mp4 = "http://blender.local/bstorage/datasets/vg_smoke/smoking_scenes/045%20-%20Penelope%20Cruz%20Smoking.mkv.mp4";
+        const mp4 = "http://10.0.1.140/bstorage/home/chexov/testvideo/LFA.mp4";
+        // const mp4 = "http://blender.local/bstorage/datasets/vg_smoke/smoking_scenes/045%20-%20Penelope%20Cruz%20Smoking.mkv.mp4";
         player.loadUrl(mp4, (err: Error) => {
             const timeline = player.getTimeline();
             this.setState({total : timeline.getFrameCount()});

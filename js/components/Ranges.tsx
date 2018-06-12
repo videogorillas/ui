@@ -12,6 +12,11 @@ interface RangesProps {
     pointer: number;
 
     onClick (frame: number): void;
+
+    onChangeRanges (updated: LabeledRange[]): void;
+
+    onDeleteRanges (deleted: LabeledRange[]): void;
+
 }
 
 const defaultColors = ["rgb(0,0,255)", "rgb(0,255,0)", "rgb(0,255,255)"];
@@ -32,6 +37,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         start : 0,
         end : 100
     };
+    private outSvg: React.RefObject<any> = React.createRef();
     private svgRef: React.RefObject<any> = React.createRef();
 
 
@@ -60,13 +66,15 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     _width = 0;
 
     componentWillReceiveProps (nextP: RangesProps) {
-
+        if (nextP.ranges != this.props.ranges) {
+            this.setState({ranges : nextP.ranges});
+        }
     }
 
 
     componentDidMount () {
-        if (this.svgRef.current) {
-            this._width = this.svgRef.current.parentElement.clientWidth;
+        if (this.outSvg.current) {
+            this._width = this.outSvg.current.parentElement.clientWidth;
             this.forceUpdate();
         }
 
@@ -79,7 +87,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
             let range = {...newRange};
             switch (e.code) {
                 case "KeyI":
-                    if (activeRangeIndex > 0) {
+                    if (activeRangeIndex > -1) {
                         this.markIn(pointer, ranges[activeRangeIndex]);
                     } else {
                         range.start = pointer;
@@ -88,7 +96,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
                     }
                     break;
                 case "KeyO":
-                    if (activeRangeIndex > 0) {
+                    if (activeRangeIndex > -1) {
                         this.markOut(pointer, ranges[activeRangeIndex]);
                     } else {
                         range.end = pointer;
@@ -141,10 +149,10 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
 
         const move = fromEvent<MouseEvent>(document, 'mousemove');
         const up = fromEvent(document, 'mouseup');
-        const svgLeft = this.svgRef.current.getBoundingClientRect().left;
         fromEvent(this.svgRef.current, 'mousedown')
             .pipe(filter((e: MouseEvent) => e.target instanceof SVGRectElement),
                 flatMap((e: MouseEvent) => {
+                    const svgLeft = this.svgRef.current.getBoundingClientRect().left;
                     const rect: SVGRectUtil = rectUtil(e.target as SVGRectElement);
                     const rightSide = rect.isRight(e.clientX - svgLeft);
                     let x = e.clientX - svgLeft;
@@ -172,32 +180,41 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         //closest left range
         const closest = this.findClosest(range.start, ranges);
         const i = ranges.indexOf(closest);
+        const updated = [];
+        const next = ranges[i + 1];
 
         // split closest range
         if (closest.start < range.start && range.end < closest.end) {
+            // clone closest as tail
             const tail = {...closest};
+
+            // set closest end to new range start
             closest.end = range.start;
+            updated.push(closest);
+
+            // set tail end to new range start
             tail.start = range.end;
+
             if (range.end - range.start > 0) {
+                //split ranges on closest index and insert new range and tail
                 ranges.splice(i + 1, 0, range, tail);
+                updated.push(range);
             } else {
+                //split ranges on closest index and insert tail
                 ranges.splice(i + 1, 0, tail);
             }
 
+            updated.push(tail);
             console.log(closest, range, tail, i);
-            return
         }
-
-        //insert range after closest
-        //in the gap between two ranges
-        const next = ranges[i + 1];
-        if (next && range.start > closest.end && range.end < next.start) {
+        //insert range after closest in the gap between two ranges
+        else if (next && range.start > closest.end && range.end < next.start) {
+            // split ranges on closest index and insert new range
             ranges.splice(i + 1, 0, range);
-            return;
+            updated.push(range);
         }
-
         // overlap with next ranges
-        if (next && range.end > next.start) {
+        else if (next && range.end > next.start) {
             //closest right range
             const nextClosest = this.findClosest(range.end, ranges);
             const j = ranges.indexOf(nextClosest);
@@ -208,21 +225,35 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
             if (range.start < closest.end) {
                 closest.end = range.start;
             }
-            ranges.splice(i + 1, j - i, range, tail);
+
+            //split ranges on closest index, delete overlapped and insert new range and tail
+            const deleted = ranges.splice(i + 1, j - i, range, tail);
+
+            this.props.onDeleteRanges(deleted);
+            updated.push(closest, range, tail);
         }
+        this.props.onChangeRanges(updated);
     }
 
     private markIn (x: number, r: LabeledRange) {
         let {start, end} = r;
         if (start < x && x < end) {
+            const head = {...r};
+            head.end = x;
             r.start = x;
+            this.props.onDeleteRanges([head]);
+            this.props.onChangeRanges([r]);
         }
     }
 
     private markOut (x: number, r: LabeledRange) {
         let {start, end} = r;
         if (start < x && x < end) {
+            const tail = {...r};
+            tail.start = x;
             r.end = x;
+            this.props.onDeleteRanges([tail]);
+            this.props.onChangeRanges([r]);
         }
     }
 
@@ -239,7 +270,8 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         let {activeRangeIndex : i} = this.state;
         if (i >= 0) {
             const ranges = [...this.state.ranges];
-            ranges.splice(i, 1);
+            const deleted = ranges.splice(i, 1);
+            this.props.onDeleteRanges(deleted);
             this.setState({ranges, activeRangeIndex : -1});
         }
     }
@@ -266,13 +298,28 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         const ranges = [...this.state.ranges];
         const width = Math.round(this.pxToRUnit(rect.width));
         if (width <= 0) {
-            ranges.splice(i, 1);
+            const deleted = ranges.splice(i, 1);
             i = -1;
+            this.props.onDeleteRanges(deleted);
         } else {
+            const deleted = [];
             const range = ranges[i];
             const start = Math.round(this.pxToRUnit(rect.x));
+            if (range.start != start) {
+                const head = {...range};
+                head.end = start;
+                deleted.push(head);
+            }
+            const end = start + width;
+            if (range.end != end) {
+                const tail = {...range};
+                tail.start = end;
+                deleted.push(tail);
+            }
             range.start = start;
-            range.end = start + width;
+            range.end = end;
+            this.props.onDeleteRanges(deleted);
+            this.props.onChangeRanges([range]);
         }
         this.setState({ranges, activeRangeIndex : i});
     }
@@ -297,6 +344,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     }
 
     get _x () {
+        //if zoomed x should be at the point where the pointer was before zoomed
         return 0;
     }
 
@@ -309,13 +357,15 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         const {zoom} = this.state;
         return (<div>
             <input type="range" onChange={e => this.setState({zoom : +e.target.value})} value={zoom} min={1} max={5}/>
-            <svg width={this._width} height="150" viewBox={`${this._x} 0 ${this._width / this.state.zoom} 150`}
-                 style={{background : "grey"}}
-                 preserveAspectRatio="none meet"
-                 ref={this.svgRef}
-                 onMouseDownCapture={this.svgClick}
-            >
-                {this.renderRanges()}
+            <svg width={this._width} height="150" ref={this.outSvg}>
+                <svg width={this._width} height="150" viewBox={`${this._x} 0 ${this._width / this.state.zoom} 150`}
+                     style={{background : "grey"}}
+                     preserveAspectRatio="none meet"
+                     ref={this.svgRef}
+                     onMouseDownCapture={this.svgClick}
+                >
+                    {this.renderRanges()}
+                </svg>
                 {this.renderMarkers()}
                 {this.renderPointer()}
             </svg>
@@ -351,7 +401,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
                 </text>
                 <rect x={x}
                       y="20"
-                      width={this.unitsToPx(marker.end - marker.start)}
+                      width={Math.max(2, this.unitsToPx(marker.end - marker.start))}
                       height="100"
                       style={{fill : "yellow"}}
                 />
@@ -384,7 +434,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         if (i == this.state.activeRangeIndex) {
             return "rgb(250,155,0)";
         }
-        return defaultColors[range.label];
+        return defaultColors[+range.label];
     }
 
 }

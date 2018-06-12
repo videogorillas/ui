@@ -3,10 +3,9 @@ import './app.css';
 import Ranges from "./Ranges";
 import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs/index";
-import {jsonlIterator, readJsonlFile, saveFile} from "../utils/FetchUtils";
+import {saveFile} from "../utils/FetchUtils";
 import ClassCaptions from "./ClassCaptions";
-
-type JsonResult = [number, [number, number]];
+import {JsonResult, jsonToRanges, parseJsonlText, readJsonlFile} from "../utils/JsonlUtils";
 
 interface AppProps {
 }
@@ -29,49 +28,22 @@ export default class App extends React.Component<AppProps, AppState> {
         this.setState({frame});
     };
     private player: VG.Player;
-    private predictions: number[] = [];
+    private predictions: JsonResult[] = [];
     private saveResults = () => {
         const blob = new Blob([JSON.stringify(this.state.ranges)], {type : 'application/json'});
         saveFile(blob, 'test.json');
     };
 
     async fetchJsonl (url: string) {
-        const jsonlIterator1 = jsonlIterator(url);
-        const ranges = await this.jsonToRanges(jsonlIterator1);
-        this.setState({ranges, total : this.predictions.length})
-    }
+        const response = await fetch(url);
+        const jsonlText = await response.text();
+        this.predictions = parseJsonlText<JsonResult>(jsonlText);
 
-    private async jsonToRanges (jsonIterator: AsyncIterableIterator<JsonResult>) {
-        const ranges = [];
-        this.predictions = [];
-        for await (const item of jsonIterator) {
-            let range: LabeledRange;
-            const predictions = item[1];
-            const max = Math.max(...predictions);
-            const index = predictions.indexOf(max);
-            this.predictions.push(index);
-            if (!ranges.length) {
-                range = {
-                    start : item[0],
-                    end : item[0] + 1,
-                    label : `${index}`
-                };
-                ranges.push(range);
-            } else {
-                range = ranges[ranges.length - 1];
-                if (`${index}` === range.label) {
-                    range.end = item[0] + 1;
-                } else {
-                    range = {
-                        start : item[0],
-                        end : item[0] + 1,
-                        label : `${index}`
-                    };
-                    ranges.push(range);
-                }
-            }
-        }
-        return ranges;
+        // const stream = response.body;
+        // const jsonlIterator1 = jsonlIterator(stream);
+        // const ranges = await jsonToRanges(jsonlIterator1);
+        const ranges = await jsonToRanges(this.predictions);
+        this.setState({ranges})
     }
 
     componentDidMount () {
@@ -117,6 +89,8 @@ export default class App extends React.Component<AppProps, AppState> {
         // const mp4 = "http://10.0.1.140/bstorage/home/chexov/testvideo/LFA.mp4";
         const mp4 = "http://blender.local/bstorage/datasets/vg_smoke/smoking_scenes/045%20-%20Penelope%20Cruz%20Smoking.mkv.mp4";
         player.loadUrl(mp4, (err: Error) => {
+            const timeline = player.getTimeline();
+            this.setState({total : timeline.getFrameCount()});
             // VG.Captions.parseSubs(player.getTimeline(), "LFA123.mp4.out.srt", 'srt', (err, subs) => {
             //     if (err) {
             //         console.error("error parsing subs", err);
@@ -146,9 +120,10 @@ export default class App extends React.Component<AppProps, AppState> {
 
     private fileUpload = async (e) => {
         const fileList = e.target.files;
-        const results = await readJsonlFile(fileList[0]);
-        const ranges = await this.jsonToRanges(results);
-        this.setState({ranges, total : this.predictions.length})
+        const results = await readJsonlFile<JsonResult>(fileList[0]);
+        this.predictions = results;
+        const ranges = await jsonToRanges(results);
+        this.setState({ranges})
     };
 
     render () {
@@ -159,8 +134,9 @@ export default class App extends React.Component<AppProps, AppState> {
             </div>
             <input type="file" id="fileInput" onChange={this.fileUpload}/>
             <button onClick={this.saveResults}>Save results</button>
-            <ClassCaptions classes={this.classes} predictions={this.predictions} current={frame}/>
-            {this.state.ranges.length > 0 ?
+            {/* TODO: classes?
+            <ClassCaptions classes={this.classes} predictions={this.predictions} current={frame}/>*/}
+            {this.state.total > 0 ?
                 <Ranges pointer={frame}
                         ranges={this.state.ranges} end={this.state.total}
                         onClick={this.onSelectFrame}

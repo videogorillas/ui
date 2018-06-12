@@ -22,6 +22,7 @@ interface RangesState {
     markers: LabeledRange[];
     inOutMarkers: LabeledRange[];
     newRange?: LabeledRange;
+    zoom: number;
 }
 
 export default class Ranges extends React.Component<RangesProps, RangesState> {
@@ -46,7 +47,8 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
                 end : -1,
                 //TODO: label for newRange?
                 label : "2"
-            }
+            },
+            zoom : 1
         };
     }
 
@@ -55,12 +57,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         return 1 / this.props.end;
     }
 
-    get _width () {
-        if (!this.svgRef.current) {
-            return 0;
-        }
-        return this.svgRef.current.clientWidth
-    }
+    _width = 0;
 
     componentWillReceiveProps (nextP: RangesProps) {
 
@@ -69,6 +66,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
 
     componentDidMount () {
         if (this.svgRef.current) {
+            this._width = this.svgRef.current.parentElement.clientWidth;
             this.forceUpdate();
         }
 
@@ -97,6 +95,11 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
                         inOutMarkers.push({start : pointer, end : pointer + 1, label : e.key});
                         newState.inOutMarkers = inOutMarkers;
                     }
+                    break;
+                case "KeyF":
+                    const closest = this.findClosest(pointer, ranges);
+                    const i = ranges.indexOf(closest);
+                    this.activateRange(i);
                     break;
                 case "Backspace":
                 case "Delete":
@@ -139,12 +142,12 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         const move = fromEvent<MouseEvent>(document, 'mousemove');
         const up = fromEvent(document, 'mouseup');
         const svgLeft = this.svgRef.current.getBoundingClientRect().left;
-        fromEvent(document, 'mousedown')
+        fromEvent(this.svgRef.current, 'mousedown')
             .pipe(filter((e: MouseEvent) => e.target instanceof SVGRectElement),
                 flatMap((e: MouseEvent) => {
                     const rect: SVGRectUtil = rectUtil(e.target as SVGRectElement);
                     const rightSide = rect.isRight(e.clientX - svgLeft);
-                    let x = e.clientX;
+                    let x = e.clientX - svgLeft;
                     return move.pipe(
                         map<MouseEvent, SVGRectUtil>((mm: MouseEvent) => {
                             const deltaX = mm.clientX - x;
@@ -289,9 +292,27 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
         this.setState({activeRangeIndex : -1});
     };
 
+    get _zoom () {
+        return Math.max(1, this.state.zoom / 10);
+    }
+
+    get _x () {
+        return 0;
+    }
+
+    get _pointerX () {
+        return this.unitsToPx(this.props.pointer);
+    }
+
+
     render () {
+        const {zoom} = this.state;
         return (<div>
-            <svg style={{width : "100%", background : "grey"}} ref={this.svgRef}
+            <input type="range" onChange={e => this.setState({zoom : +e.target.value})} value={zoom} min={1} max={5}/>
+            <svg width={this._width} height="150" viewBox={`${this._x} 0 ${this._width / this.state.zoom} 150`}
+                 style={{background : "grey"}}
+                 preserveAspectRatio="none meet"
+                 ref={this.svgRef}
                  onMouseDownCapture={this.svgClick}
             >
                 {this.renderRanges()}
@@ -304,9 +325,9 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     private renderPointer (): any {
         return (
             <g>
-                <rect x={this.unitsToPx(this.props.pointer)}
+                <rect x={this._pointerX}
                       y="20"
-                      width={this.unitsToPx(1)}
+                      width={Math.max(2, this.unitsToPx(1))}
                       height="100"
                       style={{fill : "red"}}
                 />

@@ -18,15 +18,24 @@ export async function* jsonlIterator (stream: ReadableStream) {
     }
 }
 
-export function parseJsonlText<T> (text: string): T[] {
+export function toJson<T> (text: string): T[] {
     const lines = text.trim().split('\n');
     return lines.map((line: string) => JSON.parse(line));
+}
+
+export function fromJson<T> (json: T[]) {
+    let jsonl = "";
+    for (const line of json) {
+        const str = JSON.stringify(line);
+        jsonl += str + "\n";
+    }
+    return jsonl;
 }
 
 export async function readJsonlFile<T> (file: File): Promise<T[]> {
     try {
         const event = await fileReader(file);
-        return parseJsonlText(event.target.result) as T[];
+        return toJson(event.target.result) as T[];
     } catch (e) {
         console.log("Bad JSON", e);
     }

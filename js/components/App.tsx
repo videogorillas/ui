@@ -5,7 +5,7 @@ import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs/index";
 import {saveFile} from "../utils/FetchUtils";
 import ClassCaptions from "./ClassCaptions";
-import {JsonResult, jsonToRanges, parseJsonlText, readJsonlFile} from "../utils/JsonlUtils";
+import {JsonResult, jsonToRanges, toJson, readJsonlFile, fromJson} from "../utils/JsonlUtils";
 
 interface AppProps {
 }
@@ -30,26 +30,23 @@ export default class App extends React.Component<AppProps, AppState> {
     private player: VG.Player;
     private predictions: JsonResult[] = [];
     private saveResults = () => {
-        const blob = new Blob([JSON.stringify(this.state.ranges)], {type : 'application/json'});
-        saveFile(blob, 'test.json');
+        const jsonl = fromJson(this.predictions);
+        const blob = new Blob([jsonl], {type : 'application/json'});
+        saveFile(blob, 'test.jsonl');
     };
 
     async fetchJsonl (url: string) {
         const response = await fetch(url);
         const jsonlText = await response.text();
-        this.predictions = parseJsonlText<JsonResult>(jsonlText);
-
-        // const stream = response.body;
-        // const jsonlIterator1 = jsonlIterator(stream);
-        // const ranges = await jsonToRanges(jsonlIterator1);
+        this.predictions = toJson<JsonResult>(jsonlText);
         const ranges = await jsonToRanges(this.predictions);
         this.setState({ranges})
     }
 
     componentDidMount () {
         // TODO: dynamic URL
-        // const url = 'cruz-smoking.jsonl';
-        // this.fetchJsonl(url);
+        const url = 'cruz-smoking.jsonl';
+        this.fetchJsonl(url);
 
         const kdown = fromEvent<MouseEvent>(document, 'keydown');
 

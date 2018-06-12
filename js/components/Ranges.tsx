@@ -179,12 +179,22 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     private insertNewRange (ranges: LabeledRange[], range: LabeledRange) {
         //closest left range
         const closest = this.findClosest(range.start, ranges);
-        const i = ranges.indexOf(closest);
+        const i = closest && ranges.indexOf(closest);
+        const next = closest && ranges[i + 1];
+        if (!closest || !next) {
+            ranges.push(range);
+            this.props.onChangeRanges([range]);
+            return;
+        }
         const updated = [];
-        const next = ranges[i + 1];
 
+        // before closest
+        if (closest.start > range.end) {
+            ranges.unshift(range);
+            this.props.onChangeRanges([range]);
+        }
         // split closest range
-        if (closest.start < range.start && range.end < closest.end) {
+        else if (closest.start < range.start && range.end < closest.end) {
             // clone closest as tail
             const tail = {...closest};
 
@@ -277,6 +287,9 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
     }
 
     private findClosest (x: number, ranges: LabeledRange[]): LabeledRange {
+        if (ranges.length == 0) {
+            return;
+        }
         if (ranges.length == 1) {
             return ranges[0]
         }

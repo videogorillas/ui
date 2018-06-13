@@ -14,6 +14,20 @@ export interface SVGRectUtil {
     changeRight (withX: number): void;
 }
 
+/**
+ * applies back transformation T to point p
+ * O - our coord system
+ * T - transformed coord system
+ * p - point in our coord system
+ * p1 - point in coord system T
+ * @param {SVGPoint} p
+ * @param {SVGMatrix} T
+ * @returns {SVGPoint} p1
+ */
+export function convertPoint (p: SVGPoint, T: SVGMatrix) {
+    return p.matrixTransform(T.inverse())
+}
+
 class SVGRectUtils implements SVGRectUtil {
     constructor (private svg: SVGRectElement) {
     }

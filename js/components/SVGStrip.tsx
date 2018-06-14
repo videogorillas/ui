@@ -18,19 +18,21 @@ interface StripProps {
 export default class SVGStrip extends React.Component<StripProps, StripState> {
 
     state: StripState = {
-        markers : [],
-        inOutMarkers : [],
-        zoom : 1
+        markers: [],
+        inOutMarkers: [],
+        zoom: 1
     };
     private deltaX = 0;
+    private innerG: React.RefObject<any> = React.createRef();
 
-    componentWillReceiveProps (next: StripProps) {
+
+    componentWillReceiveProps(next: StripProps) {
         this.deltaX += this.props.pointer - next.pointer;
     }
 
     private outSvg: React.RefObject<any> = React.createRef();
 
-    private markIn (x: number, r: LabeledRange) {
+    private markIn(x: number, r: LabeledRange) {
         let {start, end} = r;
         if (start < x && x < end) {
             const head = {...r};
@@ -42,7 +44,7 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
         }
     }
 
-    private markOut (x: number, r: LabeledRange) {
+    private markOut(x: number, r: LabeledRange) {
         let {start, end} = r;
         if (start < x && x < end) {
             const tail = {...r};
@@ -54,8 +56,8 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
         }
     }
 
-    private inOutPoints (x1: number, x2: number) {
-        return {start : Math.min(x1, x2), end : Math.max(x1, x2)};
+    private inOutPoints(x1: number, x2: number) {
+        return {start: Math.min(x1, x2), end: Math.max(x1, x2)};
     }
 
     private svgClick = (e: MouseEvent<SVGGElement>) => {
@@ -69,37 +71,40 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
         this.props.onClick(xRatio);
     };
 
-    get _translateX () {
+    get _translateX() {
         // 1. pointer in % to unscaled width
         // 2. translate to pointer position
+        console.log(this.props.pointer/100);
         if (this.outSvg.current && this.state.zoom > 1) {
-            const w = this.outSvg.current.clientWidth;
-            const p = this.props.pointer * this.state.zoom;
-            // console.log(this.deltaX, this.props.pointer);
+            const w = this.outSvg.current.clientWidth;//window
+            const p = -this.props.pointer * this.state.zoom;
+            const curX = this.innerG.current.transform.animVal[0].matrix.e;
+            // console.log(curX);
+            console.log(this.deltaX, this.props.pointer);
             return w * p / 100;
         }
         return 0;
     }
 
-    render () {
+    render() {
         const {zoom} = this.state;
-        return (
-            <div>
-                <input type="range" onChange={e => this.setState({zoom : +e.target.value})} value={zoom} min={1}
-                       max={10}
-                       step={0.5}/>
-                <svg width="100%" height="150" ref={this.outSvg}>
-                    <g transform={`matrix(${zoom} 0 0 1 0 0)`} onMouseDown={this.svgClick}>
-                        <rect x={0} width={"100%"}/>
-                        {this.props.children}
-                        {this.renderPointer()}
-                    </g>
-                    {this.renderMarkers()}
-                </svg>
-            </div>);
+        return <div>
+            <input type="range" onChange={e => this.setState({zoom: +e.target.value})} value={zoom} min={1}
+                   max={10}
+                   step={0.5}/>
+            <svg width="100%" height="150" ref={this.outSvg}>
+                <g transform={`matrix(${zoom} 0 0 1 ${this._translateX} 0)`}
+                   onMouseDown={this.svgClick} ref={this.innerG}>
+                    <rect x={0} width={"100%"}/>
+                    {this.props.children}
+                    {this.renderPointer()}
+                </g>
+                {this.renderMarkers()}
+            </svg>
+        </div>;
     }
 
-    private renderPointer (): any {
+    private renderPointer(): any {
         // this.props.pointer
         return (
             <g>
@@ -107,14 +112,14 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
                       y="20"
                       width={2}
                       height="100"
-                      style={{fill : "red"}}
+                      style={{fill: "red"}}
                 />
             </g>
         );
     }
 
 
-    private renderMarkers (): any {
+    private renderMarkers(): any {
         let {markers, inOutMarkers} = this.state;
         return markers.concat(inOutMarkers).map((marker, i) => {
             const {start, end, label} = marker;

@@ -72,11 +72,13 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
     get _translateX () {
         // 1. pointer in % to unscaled width
         // 2. translate to pointer position
-        if (this.outSvg.current && this.state.zoom > 1) {
+        if (this.outSvg.current) {
             const w = this.outSvg.current.clientWidth;
-            const p = this.props.pointer * this.state.zoom;
-            // console.log(this.deltaX, this.props.pointer);
-            return w * p / 100;
+            const p = this.props.pointer / 100;
+            const scaledPointer = p * this.state.zoom;
+            // const d = (p * scaledWidth) / w;
+            console.log(scaledPointer, scaledPointer);
+            return Math.max(0, scaledPointer * w);
         }
         return 0;
     }
@@ -89,7 +91,7 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
                        max={10}
                        step={0.5}/>
                 <svg width="100%" height="150" ref={this.outSvg}>
-                    <g transform={`matrix(${zoom} 0 0 1 0 0)`} onMouseDown={this.svgClick}>
+                    <g transform={`matrix(${zoom} 0 0 1 ${this._translateX} 0)`} onMouseDown={this.svgClick}>
                         <rect x={0} width={"100%"}/>
                         {this.props.children}
                         {this.renderPointer()}

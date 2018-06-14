@@ -102,14 +102,7 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
 
             else
                 new_trx = cur_trx;
-            // else if (videoPos < 0.9 / zoom && cur_trx == 0) //
-            //     new_trx = 0;
-            // else if (videoPos > 1 - 0.1 / zoom && cur_trx == max_tr_x)
-            //     new_trx = max_tr_x;
-            // console.log(new_trx);
             return -new_trx;
-            // const p = -this.props.pointer * zoom;
-            // return w * p / 100;
         }
 
         return 0;

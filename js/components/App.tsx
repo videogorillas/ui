@@ -165,8 +165,8 @@ export default class App extends React.Component<AppProps, AppState> {
             <button onClick={this.saveResults}>Save results</button>
             {/* TODO: classes?
             <ClassCaptions classes={this.classes} predictions={this.predictions} current={frame}/>*/}
-            {total > 0 ?
-                <SVGStrip pointer={frame / total * 100} onClick={this.onStripClick}>
+            {total > 1 ?
+                <SVGStrip pointer={frame / (total-1) * 100} onClick={this.onStripClick}>
                     <Ranges ranges={ranges} end={total}
                             onChangeRanges={this.updatePrediction} onDeleteRanges={this.deletePrediction}/>
                 </SVGStrip>

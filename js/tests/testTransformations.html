@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test transformations</title>
+</head>
+<body>
+<div>
+    <svg width="100%" height="200" id="svg">
+
+
+        <!--<g>-->
+            <!--<rect x="0" y="50" height="100" width="50" style="stroke:#000; fill: #ffff13"></rect>-->
+            <!--<rect x="50" y="50" height="100" width="100" style="stroke:#000; fill: #0086B2"></rect>-->
+            <!--<rect x="150" y="50" height="100" width="100" style="stroke:#000; fill: #2ab268"></rect>-->
+        <!--</g>-->
+        <!-- Это элемент до применения переноса и поворота -->
+        <rect x="50.1234%" y="50" height="100" width="100" style="stroke:#ff225b; fill: #0086B2" fill-opacity=0.2></rect>
+        <!--&lt;!&ndash; Здесь мы добавим текстовый элемент, повернем и перенесем оба элемента &ndash;&gt;-->
+        <!--<rect x="50" y="50" height="100" width="100" style="stroke:#000; fill: #0086B2" transform="translate(30) rotate(45 50 50)"></rect>-->
+        <!--<text x="60" y="105" transform="translate(30) rotate(45 50 50)"> Hello Moz! </text>-->
+
+    </svg>
+</div>
+<svg width="1800" height="200">
+
+
+    <g transform="matrix(2 0 0 1 -50 0)">
+
+        <rect x="0" y="50" height="100" width="50" style="stroke:#000; fill: #ffff13"></rect>
+        <rect x="50" y="50" height="100" width="100" style="stroke:#000; fill: #0086B2"></rect>
+        <rect x="150" y="50" height="100" width="100" style="stroke:#000; fill: #2ab268"></rect>
+    </g>
+    <!-- Это элемент до применения переноса и поворота -->
+    <rect x="50" y="50" height="100" width="100" style="stroke:#ff225b; fill: #0086B2" fill-opacity=0.2></rect>
+    <!--&lt;!&ndash; Здесь мы добавим текстовый элемент, повернем и перенесем оба элемента &ndash;&gt;-->
+    <!--<rect x="50" y="50" height="100" width="100" style="stroke:#000; fill: #0086B2" transform="translate(30) rotate(45 50 50)"></rect>-->
+    <!--<text x="60" y="105" transform="translate(30) rotate(45 50 50)"> Hello Moz! </text>-->
+
+</svg>
+<!--translate(<x> [<y>])-->
+<!--Перенос по осям x и y. Равнозначно matrix(1 0 0 1 x y). Если значение y опущено, оно принимается равным нулю.-->
+
+<!--<svg width="500" height="500">-->
+
+<!--<g transform="matrix(2 0 0 1 0 0)">-->
+<!--<rect x="250" y="250" width="200" height="200" stroke="red" fill="grey"/>-->
+<!--</g>-->
+<!--<svg id="svg">-->
+<!--</svg>-->
+<!--<circle cx="250" cy="250" r="4" stroke="black" fill="black"/>-->
+<!--</svg>-->
+<script>
+    var m = svg.getCTM();
+    var m1 = m.scaleNonUniform(2, 1);
+    var t1 = svg.createSVGTransformFromMatrix(m1);
+    // svg.transform.baseVal.appendItem(t1)
+</script>
+</body>
+</html>

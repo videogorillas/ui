@@ -6,6 +6,7 @@ import {fromEvent} from "rxjs/index";
 import {saveFile} from "../utils/FetchUtils";
 import ClassCaptions from "./ClassCaptions";
 import {JsonResult, jsonToRanges, toJson, readJsonlFile, fromJson} from "../utils/JsonlUtils";
+import SVGStrip from "./SVGStrip";
 
 interface AppProps {
 }
@@ -24,9 +25,11 @@ export default class App extends React.Component<AppProps, AppState> {
         ranges : [] as LabeledRange[]
     };
     classes = ['no smoking', 'smoking'];
+
     changeFn = (frame: number) => {
         this.setState({frame});
     };
+
     private player: VG.Player;
     private predictions: JsonResult[] = [];
     private saveResults = () => {
@@ -48,9 +51,9 @@ export default class App extends React.Component<AppProps, AppState> {
     };
 
     deletePrediction = (deleted: LabeledRange[]) => {
+        console.log("deleted", deleted);
         const start = deleted[0].start;
         const end = deleted[deleted.length - 1].end;
-        console.log("deleted", start, end, deleted);
         this.predictions.fill(undefined, start, end);
     };
 
@@ -65,13 +68,13 @@ export default class App extends React.Component<AppProps, AppState> {
     componentDidMount () {
         // TODO: dynamic URL
         // const url = 'cruz-smoking.jsonl';
+        // this.fetchJsonl(url);
         const url = 'LFA123.mp4.out.json';
         fetch(url).then(r => r.json()).then(async json => {
             this.predictions = json;
             const ranges = await jsonToRanges(this.predictions);
             this.setState({ranges});
-        })
-        // this.fetchJsonl(url);
+        });
 
         const kdown = fromEvent<MouseEvent>(document, 'keydown');
 
@@ -130,8 +133,12 @@ export default class App extends React.Component<AppProps, AppState> {
 
     onTimeUpdate = (ts: { frame: number }) => {
         const frame = ts.frame;
-        console.log(this.predictions[frame]);
         this.setState({frame})
+    };
+
+    onStripClick = (ratio: number) => {
+        const frame = Math.round(this.state.total * ratio);
+        this.onSelectFrame(frame);
     };
 
     onSelectFrame = (frame: number) => {
@@ -149,7 +156,7 @@ export default class App extends React.Component<AppProps, AppState> {
     };
 
     render () {
-        const {frame} = this.state;
+        const {frame, total, ranges} = this.state;
         return <div>
             <div ref={this.containerRef}>
 
@@ -158,17 +165,15 @@ export default class App extends React.Component<AppProps, AppState> {
             <button onClick={this.saveResults}>Save results</button>
             {/* TODO: classes?
             <ClassCaptions classes={this.classes} predictions={this.predictions} current={frame}/>*/}
-            {this.state.total > 0 ?
-                <Ranges pointer={frame}
-                        ranges={this.state.ranges} end={this.state.total}
-                        onClick={this.onSelectFrame}
-                        onChangeRanges={this.updatePrediction}
-                        onDeleteRanges={this.deletePrediction}
-                />
+            {total > 0 ?
+                <SVGStrip pointer={frame / total * 100} onClick={this.onStripClick}>
+                    <Ranges ranges={ranges} end={total}
+                            onChangeRanges={this.updatePrediction} onDeleteRanges={this.deletePrediction}/>
+                </SVGStrip>
                 : null
             }
             <div>
-                Frame number <input type="number" value={frame} onChange={(e) => this.changeFn(+e.target.value)}/>
+                Frame number <input type="number" value={frame} onChange={(e) => this.onSelectFrame(+e.target.value)}/>
             </div>
         </div>
     }

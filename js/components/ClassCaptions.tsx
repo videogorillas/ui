@@ -1,7 +1,6 @@
 import * as React from 'react';
 import {fromEvent} from "rxjs";
-import {filter, flatMap, map, sample, takeUntil} from "rxjs/operators";
-import {rectUtil, SVGRectUtil} from "../utils/SvgUtils";
+import {flatMap, map, takeUntil} from "rxjs/operators";
 
 interface CaptionsProps {
     predictions: number[];

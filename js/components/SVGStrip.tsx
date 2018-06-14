@@ -84,7 +84,7 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
             const t1 = Math.max(0, cur_trx / w / zoom);
             const t2 = Math.min(1, (cur_trx + w) / w / zoom);
             // console.log('t1 t2', t1, t2);
-            const videoPos = this.props.pointer / 100;
+            const videoPos = this.props.pointer;
             // console.log('videopos', videoPos);
             let new_trx = 0;
             if (videoPos < t1 + 0.1 / zoom) // move to the left of current window

@@ -166,7 +166,7 @@ export default class App extends React.Component<AppProps, AppState> {
             {/* TODO: classes?
             <ClassCaptions classes={this.classes} predictions={this.predictions} current={frame}/>*/}
             {total > 1 ?
-                <SVGStrip pointer={frame / (total-1) * 100} onClick={this.onStripClick}>
+                <SVGStrip pointer={frame / (total-1)} onClick={this.onStripClick}>
                     <Ranges ranges={ranges} end={total}
                             onChangeRanges={this.updatePrediction} onDeleteRanges={this.deletePrediction}/>
                 </SVGStrip>

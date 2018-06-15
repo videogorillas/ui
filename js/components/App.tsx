@@ -7,6 +7,7 @@ import {saveFile} from "../utils/FetchUtils";
 import ClassCaptions from "./ClassCaptions";
 import {JsonResult, jsonToRanges, toJson, readJsonlFile, fromJson} from "../utils/JsonlUtils";
 import SVGStrip from "./SVGStrip";
+import {ChangeEvent} from "react";
 
 interface AppProps {
 }
@@ -49,7 +50,7 @@ export default class App extends React.Component<AppProps, AppState> {
                 this.predictions[i] = [i, predict];
             }
         }
-        console.log(this.predictions);
+        // console.log(this.predictions);
     };
 
     deletePrediction = (deleted: LabeledRange[]) => {
@@ -57,7 +58,7 @@ export default class App extends React.Component<AppProps, AppState> {
         const start = deleted[0].start;
         const end = deleted[deleted.length - 1].end;
         this.predictions.fill(undefined, start, end);
-        console.log(this.predictions);
+        // console.log(this.predictions);
     };
 
     async fetchJsonl (url: string) {
@@ -79,11 +80,11 @@ export default class App extends React.Component<AppProps, AppState> {
             this.setState({ranges});
         });
 
-        const kdown = fromEvent<MouseEvent>(document, 'keydown');
+        const kdown = fromEvent<KeyboardEvent>(document, 'keydown');
 
-        kdown.subscribe(e => {
-            console.log(e);
-            let {frame} = this.state;
+        kdown.subscribe((e: KeyboardEvent) => {
+            // console.log(e);
+            let {frame, ranges} = this.state;
             let step = 0;
             switch (e.code) {
                 case "ArrowRight":
@@ -96,10 +97,38 @@ export default class App extends React.Component<AppProps, AppState> {
                 case "Delete":
                     this.deleteSelectedRange();
                     return;
+                case "Escape":
+                    this.setState({selectedRangeIndex : -1});
+                    return;
+                case "KeyF":
+                    const selectedRangeIndex = this.findClosestIndex(frame, ranges);
+                    this.setState({selectedRangeIndex});
+                    return;
+                case "Digit1":
+                case "Digit2":
+                case "Digit3":
+                case "Digit4":
+                case "Digit5":
+                case "Digit6":
+                case "Digit7":
+                case "Digit8":
+                case "Digit9":
+                case "Digit0":
+                    this.setSelectedRangeLabel(e.key);
+                    return;
             }
             frame += step;
             this.setState({frame});
         });
+    }
+
+    private setSelectedRangeLabel (key: string) {
+        const {ranges, selectedRangeIndex} = this.state;
+        if (selectedRangeIndex > -1) {
+            const range = ranges[selectedRangeIndex];
+            range.label = key;
+            this.setState({ranges});
+        }
     }
 
     containerRef = (el: HTMLElement) => {
@@ -154,7 +183,7 @@ export default class App extends React.Component<AppProps, AppState> {
         }
     };
 
-    private fileUpload = async (e) => {
+    private fileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files;
         const results = await readJsonlFile<JsonResult>(fileList[0]);
         this.predictions = results;
@@ -162,27 +191,27 @@ export default class App extends React.Component<AppProps, AppState> {
         this.setState({ranges})
     };
 
-    private findClosest (x: number, ranges: LabeledRange[]): LabeledRange {
+    private findClosestIndex (x: number, ranges: LabeledRange[], m = 0): number {
         if (ranges.length == 0) {
-            return;
+            return -1;
         }
         if (ranges.length == 1) {
-            return ranges[0]
+            return m
         }
         let mid = ranges.length / 2 | 0;
         if (ranges[mid].start > x) {
             //left half
-            return this.findClosest(x, ranges.slice(0, mid))
+            return this.findClosestIndex(x, ranges.slice(0, mid), m)
         } else {
             //right half
-            return this.findClosest(x, ranges.slice(mid))
+            return this.findClosestIndex(x, ranges.slice(mid), mid + m)
         }
     }
 
     private insertNewRange (ranges: LabeledRange[], range: LabeledRange) {
         //closest left range
-        const closest = this.findClosest(range.start, ranges);
-        const i = closest && ranges.indexOf(closest);
+        const i = this.findClosestIndex(range.start, ranges);
+        const closest = ranges[i];
         const next = closest && ranges[i + 1];
         if (!closest || !next) {
             ranges.push(range);
@@ -230,8 +259,8 @@ export default class App extends React.Component<AppProps, AppState> {
         // overlap with next ranges
         else if (next && range.end > next.start) {
             //closest right range
-            const nextClosest = this.findClosest(range.end, ranges);
-            const j = ranges.indexOf(nextClosest);
+            const j = this.findClosestIndex(range.end, ranges);
+            const nextClosest = ranges[j];
             const tail = {...nextClosest};
             tail.start = range.end;
 
@@ -295,4 +324,6 @@ export default class App extends React.Component<AppProps, AppState> {
             </div>
         </div>
     }
+
+
 }

@@ -23,6 +23,8 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
         zoom : 1
     };
     private deltaX = 0;
+    private innerG: React.RefObject<any> = React.createRef();
+
 
     componentWillReceiveProps (next: StripProps) {
         this.deltaX += this.props.pointer - next.pointer;
@@ -70,44 +72,52 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
     };
 
     get _translateX () {
-        // 1. pointer in % to unscaled width
-        // 2. translate to pointer position
-        if (this.outSvg.current) {
-            const w = this.outSvg.current.clientWidth;
-            const p = this.props.pointer / 100;
-            const scaledPointer = p * this.state.zoom;
-            // const d = (p * scaledWidth) / w;
-            console.log(scaledPointer, scaledPointer);
-            return Math.max(0, scaledPointer * w);
+        const zoom = this.state.zoom;
+        if (this.outSvg.current && zoom > 1) {
+            const w = this.outSvg.current.clientWidth;//window
+            const scaledW = w * zoom;
+            const T = this.innerG.current.getCTM(); //transformation matrix
+            const cur_trx = -T.e;
+            const t1 = Math.max(0, cur_trx / scaledW);
+            const t2 = Math.min(1, (cur_trx + w) / scaledW);
+            const videoPos = this.props.pointer;
+            let new_trx = 0;
+            if (videoPos < t1 + 0.1 / zoom) // move to the left of current window
+                new_trx = w * Math.max(videoPos * zoom - 0.1, 0);
+            else if (videoPos > t2 - 0.1 / zoom) // move to the right of current window
+                new_trx = w * Math.min(videoPos * zoom - 0.9, zoom - 1);
+            else
+                new_trx = cur_trx;
+            return -new_trx;
         }
+
         return 0;
     }
 
     render () {
         const {zoom} = this.state;
-        return (
-            <div>
-                <input type="range" onChange={e => this.setState({zoom : +e.target.value})} value={zoom} min={1}
-                       max={10}
-                       step={0.5}/>
-                <svg width="100%" height="150" ref={this.outSvg}>
-                    <g transform={`matrix(${zoom} 0 0 1 ${this._translateX} 0)`} onMouseDown={this.svgClick}>
-                        <rect x={0} width={"100%"}/>
-                        {this.props.children}
-                        {this.renderPointer()}
-                    </g>
-                    {this.renderMarkers()}
-                </svg>
-            </div>);
+        return <div>
+            <input type="range" onChange={e => this.setState({zoom : +e.target.value})} value={zoom} min={1}
+                   max={10}
+                   step={0.5}/>
+            <svg width="100%" height="150" ref={this.outSvg}>
+                <g transform={`matrix(${zoom} 0 0 1 ${this._translateX} 0)`}
+                   onMouseDown={this.svgClick} ref={this.innerG}>
+                    <rect x={0} width={"100%"}/>
+                    {this.props.children}
+                    {this.renderPointer()}
+                </g>
+                {this.renderMarkers()}
+            </svg>
+        </div>;
     }
 
     private renderPointer (): any {
-        // this.props.pointer
         return (
             <g>
-                <rect x={`${this.props.pointer}%`}
+                <rect x={`${this.props.pointer * 100}%`}
                       y="20"
-                      width={2}
+                      width={1}
                       height="100"
                       style={{fill : "red"}}
                 />

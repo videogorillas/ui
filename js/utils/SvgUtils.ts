@@ -1,5 +1,7 @@
 export interface SVGRectUtil {
     width: number;
+    percentageWidth: number;
+    percentageX: number;
     x: number;
     right: number;
     next: SVGRectUtil;
@@ -34,6 +36,24 @@ class SVGRectUtils implements SVGRectUtil {
 
     get width () {
         return this.svg && this.svg.width ? this.svg.width.baseVal.value : 0;
+    }
+
+    get percentageWidth () {
+        if (!this.svg) {
+            return 0;
+        }
+        const w = this.svg.width.baseVal;
+        w.convertToSpecifiedUnits(w.SVG_LENGTHTYPE_PERCENTAGE);
+        return w.valueInSpecifiedUnits;
+    }
+
+    get percentageX () {
+        if (!this.svg) {
+            return 0;
+        }
+        const x = this.svg.x.baseVal;
+        x.convertToSpecifiedUnits(x.SVG_LENGTHTYPE_PERCENTAGE);
+        return x.valueInSpecifiedUnits;
     }
 
     set _width (w: number) {

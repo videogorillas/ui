@@ -2,10 +2,11 @@ import * as React from 'react';
 import {LabeledRange} from "../models/Range";
 import {convertPoint} from "../utils/SvgUtils";
 import {MouseEvent} from "react";
+import {fromEvent} from "rxjs";
 
 interface StripState {
     markers: LabeledRange[];
-    inOutMarkers: LabeledRange[];
+    inOutMarkers: { in?: LabeledRange, out?: LabeledRange };
     zoom: number;
 }
 
@@ -13,51 +14,60 @@ interface StripProps {
     pointer: number;
 
     onClick (frame: number): void;
+
+    onMark (marker: LabeledRange): void;
 }
 
 export default class SVGStrip extends React.Component<StripProps, StripState> {
 
     state: StripState = {
         markers : [],
-        inOutMarkers : [],
+        inOutMarkers : {},
         zoom : 1
     };
-    private deltaX = 0;
     private innerG: React.RefObject<any> = React.createRef();
+    private outSvg: React.RefObject<SVGSVGElement> = React.createRef();
 
 
-    componentWillReceiveProps (next: StripProps) {
-        this.deltaX += this.props.pointer - next.pointer;
-    }
-
-    private outSvg: React.RefObject<any> = React.createRef();
-
-    private markIn (x: number, r: LabeledRange) {
-        let {start, end} = r;
-        if (start < x && x < end) {
-            const head = {...r};
-            head.end = x;
-            r.start = x;
-            // // TODO: pass to?
-            // this.props.onDeleteRanges([head]);
-            // this.props.onChangeRanges([r]);
-        }
-    }
-
-    private markOut (x: number, r: LabeledRange) {
-        let {start, end} = r;
-        if (start < x && x < end) {
-            const tail = {...r};
-            tail.start = x;
-            r.end = x;
-            // TODO: pass to?
-            // this.props.onDeleteRanges([tail]);
-            // this.props.onChangeRanges([r]);
-        }
-    }
-
-    private inOutPoints (x1: number, x2: number) {
-        return {start : Math.min(x1, x2), end : Math.max(x1, x2)};
+    componentDidMount () {
+        this.outSvg.current
+        const kdown = fromEvent<MouseEvent<Document>>(document, 'keydown');
+        kdown.subscribe((e: KeyboardEvent) => {
+            const {pointer} = this.props;
+            const {markers, inOutMarkers} = this.state;
+            const w = this.outSvg.current.width.baseVal.value;
+            const mark = {start : pointer, end : pointer + 1 / w, label : e.key};
+            switch (e.code) {
+                case "KeyI":
+                    inOutMarkers.in = mark;
+                    break;
+                case "KeyO":
+                    inOutMarkers.out = mark;
+                    break;
+                // case "Digit1":
+                // case "Digit2":
+                // case "Digit3":
+                // case "Digit4":
+                // case "Digit5":
+                // case "Digit6":
+                // case "Digit7":
+                // case "Digit8":
+                // case "Digit9":
+                // case "Digit0":
+                //     markers.push({start : pointer, end : pointer + 1, label : e.key});
+                //     newState.markers = markers;
+                //     break;
+            }
+            console.log(inOutMarkers);
+            if (inOutMarkers.in && inOutMarkers.out) {
+                const start = Math.min(this.state.inOutMarkers.in.start, this.state.inOutMarkers.out.start);
+                const end = Math.max(this.state.inOutMarkers.in.end, this.state.inOutMarkers.out.end);
+                this.props.onMark({start, end, label : "mark"});
+                this.setState({inOutMarkers : {}});
+            } else {
+                this.setState({inOutMarkers});
+            }
+        });
     }
 
     private svgClick = (e: MouseEvent<SVGGElement>) => {
@@ -120,6 +130,7 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
                       width={1}
                       height="100"
                       style={{fill : "red"}}
+                      id="pointer"
                 />
             </g>
         );
@@ -128,20 +139,20 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
 
     private renderMarkers (): any {
         let {markers, inOutMarkers} = this.state;
-        return markers.concat(inOutMarkers).map((marker, i) => {
+        return markers.concat(Object.values(inOutMarkers)).map((marker, i) => {
             const {start, end, label} = marker;
             const k = `${start}-${end}-${label}`;
             return (<g key={`marker-${k}`}>
                 <text
-                    x={start}
+                    x={`${start * 100}%`}
                     y="18"
                     stroke="none"
                     fill="black">
                     {marker.label}
                 </text>
-                <rect x={start}
+                <rect x={`${start * 100}%`}
                       y="20"
-                      width={Math.max(2, end - start)}
+                      width={`${(end - start) * 100}%`}
                       height="100"
                       fill="yellow"
                 />

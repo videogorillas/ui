@@ -21,14 +21,12 @@ interface AppState {
 
 export default class App extends React.Component<AppProps, AppState> {
 
-    state = {
+    state: AppState = {
         frame : 0,
         total : 0,
-        ranges : [] as LabeledRange[],
+        ranges : [],
         selectedRangeIndex : -1
     };
-    classes = ['no smoking', 'smoking'];
-
     changeFn = (frame: number) => {
         this.setState({frame});
     };
@@ -61,6 +59,16 @@ export default class App extends React.Component<AppProps, AppState> {
         // console.log(this.predictions);
     };
 
+    private get currentCaption () {
+
+        const prediction = this.predictions[this.state.frame];
+        if (!prediction) {
+            return;
+        }
+        const max = Math.max(...prediction[1]);
+        return `${prediction[1].indexOf(max)}`;
+    };
+
     async fetchJsonl (url: string) {
         const response = await fetch(url);
         const jsonlText = await response.text();
@@ -68,6 +76,13 @@ export default class App extends React.Component<AppProps, AppState> {
         const ranges = await jsonToRanges(this.predictions);
         this.setState({ranges})
     }
+
+    private keyMap = {
+        f : "Select range under the pointer",
+        Escape : "Deselect range",
+        Delete : "Delete selected range",
+        "1-0" : "Set class 1-0"
+    };
 
     componentDidMount () {
         // TODO: dynamic URL
@@ -83,7 +98,7 @@ export default class App extends React.Component<AppProps, AppState> {
         const kdown = fromEvent<KeyboardEvent>(document, 'keydown');
 
         kdown.subscribe((e: KeyboardEvent) => {
-            // console.log(e);
+            console.log('code', e.code, 'key', e.key);
             let {frame, ranges} = this.state;
             let step = 0;
             switch (e.code) {
@@ -114,7 +129,7 @@ export default class App extends React.Component<AppProps, AppState> {
                 case "Digit8":
                 case "Digit9":
                 case "Digit0":
-                    this.setSelectedRangeLabel(e.key);
+                    this.setClass(e.key);
                     return;
             }
             frame += step;
@@ -122,13 +137,18 @@ export default class App extends React.Component<AppProps, AppState> {
         });
     }
 
-    private setSelectedRangeLabel (key: string) {
-        const {ranges, selectedRangeIndex} = this.state;
+    private setClass (key: string) {
+        let range: LabeledRange;
+        let {ranges, selectedRangeIndex, frame} = this.state;
         if (selectedRangeIndex > -1) {
-            const range = ranges[selectedRangeIndex];
+            range = ranges[selectedRangeIndex];
             range.label = key;
-            this.setState({ranges});
+        } else {
+            range = {start : frame, end : frame + 1, label : key};
+            ranges = this.insertNewRange(ranges, range);
         }
+        this.updatePrediction([range]);
+        this.setState({ranges, selectedRangeIndex : -1});
     }
 
     containerRef = (el: HTMLElement) => {
@@ -208,7 +228,7 @@ export default class App extends React.Component<AppProps, AppState> {
         }
     }
 
-    private insertNewRange (ranges: LabeledRange[], range: LabeledRange) {
+    private insertNewRange (ranges: LabeledRange[], range: LabeledRange): LabeledRange[] {
         //closest left range
         const i = this.findClosestIndex(range.start, ranges);
         const closest = ranges[i];
@@ -220,9 +240,13 @@ export default class App extends React.Component<AppProps, AppState> {
             return;
         }
         const updated = [];
-
+        // range and closest are same
+        if (closest.start == range.start && range.end == closest.end) {
+            ranges[i] = range;
+            updated.push(range);
+        }
         // before closest
-        if (closest.start > range.end) {
+        else if (closest.start > range.end) {
             ranges.unshift(range);
             this.updatePrediction([range]);
         }
@@ -310,8 +334,7 @@ export default class App extends React.Component<AppProps, AppState> {
             </div>
             <input type="file" id="fileInput" onChange={this.fileUpload}/>
             <button onClick={this.saveResults}>Save results</button>
-            {/* TODO: classes?
-            <ClassCaptions classes={this.classes} predictions={this.predictions} current={frame}/>*/}
+            <ClassCaptions current={this.currentCaption}/>
             {total > 0 ?
                 <SVGStrip pointer={frame / total} onClick={this.onStripClick} onMark={this.onMarkRange}>
                     <Ranges ranges={ranges} end={total} onRangeSelectedIndex={this.selectRangeIndex}

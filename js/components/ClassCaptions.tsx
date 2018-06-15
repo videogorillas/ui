@@ -3,9 +3,7 @@ import {fromEvent} from "rxjs";
 import {flatMap, map, takeUntil} from "rxjs/operators";
 
 interface CaptionsProps {
-    predictions: number[];
-    classes: string[];
-    current: number;
+    current: string;
 }
 
 interface CaptionsState {
@@ -50,11 +48,7 @@ export default class ClassCaptions extends React.Component<CaptionsProps, Captio
     }
 
     render () {
-        const {predictions, classes, current} = this.props;
-        if (!predictions || !classes) {
-            return null;
-        }
-
+        const {current} = this.props;
         return (
             <div ref={this.captRef} style={{
                 position : 'absolute',
@@ -65,7 +59,7 @@ export default class ClassCaptions extends React.Component<CaptionsProps, Captio
                 color : 'white',
                 zIndex : 999
             }}>
-                {classes[predictions[current]]}
+                {current}
             </div>);
     }
 

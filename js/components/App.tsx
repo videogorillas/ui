@@ -8,6 +8,7 @@ import ClassCaptions from "./ClassCaptions";
 import {JsonResult, jsonToRanges, toJson, readJsonlFile, fromJson} from "../utils/JsonlUtils";
 import SVGStrip from "./SVGStrip";
 import {ChangeEvent} from "react";
+import Player from "./Player";
 
 interface AppProps {
 }
@@ -17,7 +18,17 @@ interface AppState {
     total: number;
     ranges: LabeledRange[];
     selectedRangeIndex: number;
+    videoUrl?: string;
+    jsonUrl?: string;
 }
+
+// const mp4 = "http://10.0.1.140/bstorage/home/chexov/testvideo/LFA.mp4";
+// const mp4 = "http://blender.local/bstorage/datasets/vg_smoke/smoking_scenes/045%20-%20Penelope%20Cruz%20Smoking.mkv.mp4";
+// TODO: dynamic URL
+// const url = 'cruz-smoking.jsonl';
+// this.fetchJsonl(url);
+const url = 'LFA123.mp4.out.json';
+// this.setupPlayer(el, pConfig);
 
 export default class App extends React.Component<AppProps, AppState> {
 
@@ -27,11 +38,7 @@ export default class App extends React.Component<AppProps, AppState> {
         ranges : [],
         selectedRangeIndex : -1
     };
-    changeFn = (frame: number) => {
-        this.setState({frame});
-    };
 
-    private player: VG.Player;
     private predictions: JsonResult[] = [];
     private saveResults = () => {
         const jsonl = fromJson(this.predictions);
@@ -77,6 +84,14 @@ export default class App extends React.Component<AppProps, AppState> {
         this.setState({ranges})
     }
 
+    async fetchJson (url: string) {
+        const response = await fetch(url);
+        const json = await response.json();
+        this.predictions = json;
+        const ranges = await jsonToRanges(this.predictions);
+        this.setState({ranges});
+    }
+
     private keyMap = {
         f : "Select range under the pointer",
         Escape : "Deselect range",
@@ -85,16 +100,6 @@ export default class App extends React.Component<AppProps, AppState> {
     };
 
     componentDidMount () {
-        // TODO: dynamic URL
-        // const url = 'cruz-smoking.jsonl';
-        // this.fetchJsonl(url);
-        const url = 'LFA123.mp4.out.json';
-        fetch(url).then(r => r.json()).then(async json => {
-            this.predictions = json;
-            const ranges = await jsonToRanges(this.predictions);
-            this.setState({ranges});
-        });
-
         const kdown = fromEvent<KeyboardEvent>(document, 'keydown');
 
         kdown.subscribe((e: KeyboardEvent) => {
@@ -111,6 +116,11 @@ export default class App extends React.Component<AppProps, AppState> {
                 case "Backspace":
                 case "Delete":
                     this.deleteSelectedRange();
+                    return;
+                case "Enter":
+                    if (e.target.id === "videoUrl") {
+                        this.setState({videoUrl : e.target.value});
+                    }
                     return;
                 case "Escape":
                     this.setState({selectedRangeIndex : -1});
@@ -151,45 +161,13 @@ export default class App extends React.Component<AppProps, AppState> {
         this.setState({ranges, selectedRangeIndex : -1});
     }
 
-    containerRef = (el: HTMLElement) => {
-        if (el) {
-            let pConfig = {
-                hotkeys : true,
-                playlist : false,
-                search : false,
-                theme : 'vg',
-                plugins : ['filmstrip']
-            };
-            this.setupPlayer(el, pConfig);
-        }
-    };
-
-    private setupPlayer (el: HTMLElement, pConfig: any) {
-        const player = new VG.Player(el, pConfig);
-
-        const mp4 = "http://10.0.1.140/bstorage/home/chexov/testvideo/LFA.mp4";
-        // const mp4 = "http://blender.local/bstorage/datasets/vg_smoke/smoking_scenes/045%20-%20Penelope%20Cruz%20Smoking.mkv.mp4";
-        player.loadUrl(mp4, (err: Error) => {
-            const timeline = player.getTimeline();
-            this.setState({total : timeline.getFrameCount()});
-            // VG.Captions.parseSubs(player.getTimeline(), "LFA123.mp4.out.srt", 'srt', (err, subs) => {
-            //     if (err) {
-            //         console.error("error parsing subs", err);
-            //         return;
-            //     }
-            //     console.log("SRT OK", subs);
-            //     player.addCaptions(subs);
-            //     player.play();
-            // });
-            this.player = player;
-            console.log(err, "player");
-            player.addEventListener("timeupdate", this.onTimeUpdate);
-        });
-    }
-
     onTimeUpdate = (ts: { frame: number }) => {
         const frame = ts.frame;
-        this.setState({frame})
+        this.setState({frame});
+    };
+
+    videoLoaded = (timeline: { getFrameCount (): number }) => {
+        this.setState({total : timeline.getFrameCount()});
     };
 
     onStripClick = (ratio: number) => {
@@ -198,9 +176,7 @@ export default class App extends React.Component<AppProps, AppState> {
     };
 
     onSelectFrame = (frame: number) => {
-        if (this.player) {
-            this.player.seekFrame(frame);
-        }
+        this.setState({frame});
     };
 
     private fileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -327,14 +303,19 @@ export default class App extends React.Component<AppProps, AppState> {
     }
 
     render () {
-        const {frame, total, ranges, selectedRangeIndex} = this.state;
+        const {frame, total, ranges, selectedRangeIndex, videoUrl} = this.state;
         return <div>
-            <div ref={this.containerRef}>
-
+            {videoUrl &&
+            <div>
+                <Player url={videoUrl} onTimeUpdate={this.onTimeUpdate} frame={frame} onLoad={this.videoLoaded}/>
+                <ClassCaptions current={this.currentCaption}/>
+                <div>
+                    Frame number <input type="number" value={frame}
+                                        onChange={(e) => this.onSelectFrame(+e.target.value)}/>
+                    <button onClick={this.saveResults}>Save results</button>
+                </div>
             </div>
-            <input type="file" id="fileInput" onChange={this.fileUpload}/>
-            <button onClick={this.saveResults}>Save results</button>
-            <ClassCaptions current={this.currentCaption}/>
+            }
             {total > 0 ?
                 <SVGStrip pointer={frame / total} onClick={this.onStripClick} onMark={this.onMarkRange}>
                     <Ranges ranges={ranges} end={total} onRangeSelectedIndex={this.selectRangeIndex}
@@ -343,8 +324,12 @@ export default class App extends React.Component<AppProps, AppState> {
                 : null
             }
             <div>
-                Frame number <input type="number" value={frame} onChange={(e) => this.onSelectFrame(+e.target.value)}/>
+                <input type="text" id="videoUrl"/>
             </div>
+            <div>
+                <input type="file" id="fileInput" onChange={this.fileUpload}/>
+            </div>
+
         </div>
     }
 

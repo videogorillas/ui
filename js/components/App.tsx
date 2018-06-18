@@ -23,6 +23,7 @@ interface AppState {
     selectedRangeIndex: number;
     videoUrl?: string;
     jsonUrl?: string;
+    csv?: string;
 }
 
 // const mp4 = "http://10.0.1.140/bstorage/home/chexov/testvideo/LFA.mp4";
@@ -31,12 +32,11 @@ interface AppState {
 // const url = 'LFA123.mp4.out.json';
 
 export default class App extends React.Component<AppProps, AppState> {
-
     constructor (props: AppProps) {
         super(props);
         const parsed = queryString.parse(location.search);
         console.log(parsed);
-        const {videoUrl, json} = parsed;
+        const {videoUrl, json, csv} = parsed;
         if (json) {
             try {
                 this.fetchJson(json);
@@ -313,8 +313,21 @@ export default class App extends React.Component<AppProps, AppState> {
         }
     }
 
+    private csvSelectChange() {
+
+    }
+
     render () {
-        const {frame, total, ranges, selectedRangeIndex, videoUrl} = this.state;
+        const {frame, total, ranges, selectedRangeIndex, videoUrl, csv} = this.state;
+        let csv_select: string;
+        if (csv) {
+            csv_select = csv
+                .split('\n')
+                .map((s: string) => s.split(/,\t;/, 2))
+                .map((b: string[]) => '<option value="' + b[1] + '">' + b[0] + '</option>')
+                .reduce((prev: any, curr: any) => prev + curr);
+        }
+
         return <div>
             {videoUrl &&
             <div>
@@ -331,6 +344,10 @@ export default class App extends React.Component<AppProps, AppState> {
                     <Ranges ranges={ranges} end={total} onRangeSelectedIndex={this.selectRangeIndex}
                             selectedIndex={selectedRangeIndex}/>
                 </SVGStrip>
+                : null
+            }
+            {csv_select ?
+                <select onChange={this.csvSelectChange}>{csv_select}</select>
                 : null
             }
             {!videoUrl &&

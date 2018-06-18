@@ -38,11 +38,7 @@ export default class App extends React.Component<AppProps, AppState> {
         console.log(parsed);
         const {videoUrl, json} = parsed;
         if (json) {
-            try {
-                this.fetchJson(json);
-            } catch (e) {
-                console.log(e);
-            }
+            this.fetchJson(json);
         }
         this.state = {
             frame : 0,
@@ -91,10 +87,15 @@ export default class App extends React.Component<AppProps, AppState> {
     };
 
     async fetchJson (url: string) {
-        const json = await fetchJson<JsonResult>(url);
-        this.predictions = json;
-        const ranges = await jsonToRanges(this.predictions);
-        this.setState({ranges});
+        try {
+            const json = await fetchJson<JsonResult>(url);
+            this.predictions = json;
+            const ranges = await jsonToRanges(this.predictions);
+            this.setState({ranges});
+        } catch (e) {
+            console.log(e);
+        }
+
     }
 
     private keyMap = {
@@ -224,7 +225,7 @@ export default class App extends React.Component<AppProps, AppState> {
             ranges.push(range);
             this.updatePrediction([range]);
             this.selectRangeIndex(i + 1);
-            return;
+            return ranges;
         }
         const updated = [];
         // range and closest are same
@@ -297,6 +298,7 @@ export default class App extends React.Component<AppProps, AppState> {
         const start = Math.round(range.start * total);
         const end = Math.round(range.end * total);
         const ranges = this.insertNewRange([...this.state.ranges], {start, end, label : "new"});
+        console.log("insertNewRange", ranges);
         this.setState({ranges});
     };
 

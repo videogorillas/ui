@@ -108,9 +108,9 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
                    onMouseDown={this.svgClick} ref={this.innerG}>
                     <rect x={0} width={"100%"}/>
                     {this.props.children}
-                    {this.renderMarkers()}
                     {this.renderPointer()}
                 </g>
+                {this.renderMarkers()}
             </svg>
         </div>;
     }

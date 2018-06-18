@@ -32,13 +32,34 @@ export function fromJson<T> (json: T[]) {
     return jsonl;
 }
 
-export async function readJsonlFile<T> (file: File): Promise<T[]> {
+async function readTextFile (file: File): Promise<string> {
     try {
         const event = await fileReader(file);
-        return toJson(event.target.result) as T[];
+        return event.target.result;
     } catch (e) {
-        console.log("Bad JSON", e);
+        console.log("Error", e);
     }
+}
+
+export function parseResponse<T> (text: string): T[] {
+    let json: T[];
+    try {
+        json = JSON.parse(text);
+    } catch (e) {
+        json = toJson(text) as T[];
+    }
+    return json;
+}
+
+export async function fetchJson<T> (url: string): Promise<T[]> {
+    const response = await fetch(url);
+    const text = await response.text();
+    return parseResponse(text);
+}
+
+export async function readJsonFile<T> (file: File): Promise<T[]> {
+    const text = await readTextFile(file);
+    return parseResponse(text);
 }
 
 export type JsonResult = [number, [number, number]];
@@ -72,10 +93,4 @@ export async function jsonToRanges (jsonIterator: AsyncIterableIterator<JsonResu
         }
     }
     return ranges;
-}
-
-function rangesToJsonl (ranges: LabeledRange[]) {
-    for (const range of ranges) {
-
-    }
 }

@@ -29,6 +29,7 @@
     "@types/react-dom": "^16.0.5"
   },
   "dependencies": {
+    "query-string": "^6.1.0",
     "react": "^16.4.0",
     "react-dom": "^16.4.0",
     "rxjs": "^6.2.0"

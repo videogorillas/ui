@@ -34,7 +34,7 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
         const kdown = fromEvent<MouseEvent<Document>>(document, 'keydown');
         kdown.subscribe((e: KeyboardEvent) => {
             const {pointer} = this.props;
-            const {markers, inOutMarkers} = this.state;
+            const {markers, inOutMarkers, zoom} = this.state;
             const w = this.outSvg.current.width.baseVal.value;
             const mark = {start : pointer, end : pointer + 1 / w, label : e.key};
             switch (e.code) {
@@ -44,24 +44,16 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
                 case "KeyO":
                     inOutMarkers.out = mark;
                     break;
-                // case "Digit1":
-                // case "Digit2":
-                // case "Digit3":
-                // case "Digit4":
-                // case "Digit5":
-                // case "Digit6":
-                // case "Digit7":
-                // case "Digit8":
-                // case "Digit9":
-                // case "Digit0":
-                //     markers.push({start : pointer, end : pointer + 1, label : e.key});
-                //     newState.markers = markers;
-                //     break;
+                case "Equal":
+                    this.setState({zoom : Math.min(zoom + 1, 10)});
+                    return;
+                case "Minus":
+                    this.setState({zoom : Math.max(zoom - 1, 1)});
+                    return;
             }
-            console.log(inOutMarkers);
             if (inOutMarkers.in && inOutMarkers.out) {
                 const start = Math.min(this.state.inOutMarkers.in.start, this.state.inOutMarkers.out.start);
-                const end = Math.max(this.state.inOutMarkers.in.end, this.state.inOutMarkers.out.end);
+                const end = Math.max(this.state.inOutMarkers.in.start, this.state.inOutMarkers.out.start);
                 this.props.onMark({start, end, label : "mark"});
                 this.setState({inOutMarkers : {}});
             } else {
@@ -115,9 +107,9 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
                    onMouseDown={this.svgClick} ref={this.innerG}>
                     <rect x={0} width={"100%"}/>
                     {this.props.children}
+                    {this.renderMarkers()}
                     {this.renderPointer()}
                 </g>
-                {this.renderMarkers()}
             </svg>
         </div>;
     }
@@ -138,21 +130,21 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
 
 
     private renderMarkers (): any {
-        let {markers, inOutMarkers} = this.state;
+        let {markers, inOutMarkers, zoom} = this.state;
         return markers.concat(Object.values(inOutMarkers)).map((marker, i) => {
             const {start, end, label} = marker;
             const k = `${start}-${end}-${label}`;
             return (<g key={`marker-${k}`}>
                 <text
-                    x={`${start * 100}%`}
+                    x={`${start * zoom * 100}%`}
                     y="18"
                     stroke="none"
                     fill="black">
                     {marker.label}
                 </text>
-                <rect x={`${start * 100}%`}
+                <rect x={`${start * zoom * 100}%`}
                       y="20"
-                      width={`${(end - start) * 100}%`}
+                      width={`${(end - start) * zoom * 100}%`}
                       height="100"
                       fill="yellow"
                 />

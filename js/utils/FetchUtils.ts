@@ -35,7 +35,7 @@ export function saveFile (blob: Blob, fileName: string) {
     window.URL.revokeObjectURL(url);
 }
 
-export async function fileReader(file: File){
+export async function fileReader(file: File): Promise<FileReaderProgressEvent> {
     const reader = new FileReader();
     const result = new Promise<FileReaderProgressEvent>((resolve, reject) => {
         reader.onload = resolve;

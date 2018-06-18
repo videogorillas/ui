@@ -99,9 +99,10 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
     render () {
         const {zoom} = this.state;
         return <div>
-            <input type="range" onChange={e => this.setState({zoom : +e.target.value})} value={zoom} min={1}
-                   max={10}
-                   step={0.5}/>
+            <div>zoom <input type="range" onChange={e => this.setState({zoom : +e.target.value})} value={zoom} min={1}
+                             max={10}
+                             step={0.5}/>
+            </div>
             <svg width="100%" height="150" ref={this.outSvg}>
                 <g transform={`matrix(${zoom} 0 0 1 ${this._translateX} 0)`}
                    onMouseDown={this.svgClick} ref={this.innerG}>

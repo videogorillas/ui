@@ -9,6 +9,7 @@ import {JsonResult, jsonToRanges, toJson, readJsonFile, fromJson, fetchJson} fro
 import SVGStrip from "./SVGStrip";
 import {ChangeEvent} from "react";
 import Player from "./Player";
+import KeyMap from "./KeyMap";
 
 const queryString = require('query-string');
 
@@ -37,7 +38,11 @@ export default class App extends React.Component<AppProps, AppState> {
         console.log(parsed);
         const {videoUrl, json} = parsed;
         if (json) {
-            this.fetchJson(json);
+            try {
+                this.fetchJson(json);
+            } catch (e) {
+                console.log(e);
+            }
         }
         this.state = {
             frame : 0,
@@ -96,14 +101,18 @@ export default class App extends React.Component<AppProps, AppState> {
         f : "Select range under the pointer",
         Escape : "Deselect range",
         Delete : "Delete selected range",
-        "1-0" : "Set class 1-0"
+        "1-0" : "Set class 1-0",
+        "i" : "Set in point",
+        "o" : "Set out point",
+        "+" : "Zoom in",
+        "-" : "Zoom out"
     };
 
     componentDidMount () {
         const kdown = fromEvent<KeyboardEvent>(document, 'keydown');
 
         kdown.subscribe((e: KeyboardEvent) => {
-            console.log('code', e.code, 'key', e.key);
+            // console.log('code', e.code, 'key', e.key);
             let {frame, ranges} = this.state;
             let step = 0;
             switch (e.code) {
@@ -314,7 +323,6 @@ export default class App extends React.Component<AppProps, AppState> {
                 <div>
                     Frame number <input type="number" value={frame}
                                         onChange={(e) => this.onSelectFrame(+e.target.value)}/>
-                    <button onClick={this.saveResults}>Save results</button>
                 </div>
             </div>
             }
@@ -325,13 +333,36 @@ export default class App extends React.Component<AppProps, AppState> {
                 </SVGStrip>
                 : null
             }
-            <div>
-                <input type="text" id="videoUrl"/>
-            </div>
-            <div>
-                <input type="file" id="fileInput" onChange={this.fileUpload}/>
-            </div>
+            {!videoUrl &&
 
+            <div>
+                <div>
+                    <h2>Use URL query string like <strong><code>/?videoUrl=VIDEO_URL&json=JSON_URL</code></strong> or
+                        inputs below to load video and json</h2>
+                </div>
+                <hr/>
+                <label htmlFor="videoUrl">Enter <strong>video</strong> file url <input type="text"
+                                                                                       id="videoUrl"/></label>
+
+            </div>
+            }
+            {!this.predictions.length &&
+            <div>
+                <label htmlFor="fileInput">Choose <b>json or jsonl</b> file <input type="file" id="fileInput"
+                                                                                   onChange={this.fileUpload}/></label>
+            </div>
+            }
+            {!!this.predictions.length &&
+            <div>
+                <button onClick={this.saveResults}>Save results</button>
+            </div>
+            }
+            {videoUrl &&
+            <div>
+                <hr/>
+                <KeyMap keymap={this.keyMap}/>
+            </div>
+            }
         </div>
     }
 

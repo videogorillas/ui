@@ -11,7 +11,7 @@ interface RangesProps {
     onRangeSelectedIndex (i: number): void;
 }
 
-const defaultColors = ["rgb(0,0,255)", "rgb(0,255,0)", "rgb(0,255,255)"];
+const defaultColors = ["#fe7f2d", "#233d4d", "#388659", "#ef6f6c", "#3891a6", "#0b132b", "#6cd4ff", "#310a31", "#ffbf46", "#cf1259"];
 
 interface RangesState {
 }
@@ -63,7 +63,7 @@ export default class Ranges extends React.Component<RangesProps, RangesState> {
 
     private getColor (range: LabeledRange, i: number): string {
         if (i == this.props.selectedIndex) {
-            return "rgb(250,155,0)";
+            return "rgb(255,255,255)";
         }
         return defaultColors[+range.label];
     }

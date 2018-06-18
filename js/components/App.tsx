@@ -5,10 +5,12 @@ import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs/index";
 import {saveFile} from "../utils/FetchUtils";
 import ClassCaptions from "./ClassCaptions";
-import {JsonResult, jsonToRanges, toJson, readJsonlFile, fromJson} from "../utils/JsonlUtils";
+import {JsonResult, jsonToRanges, toJson, readJsonFile, fromJson, fetchJson} from "../utils/JsonlUtils";
 import SVGStrip from "./SVGStrip";
 import {ChangeEvent} from "react";
 import Player from "./Player";
+
+const queryString = require('query-string');
 
 interface AppProps {
 }
@@ -24,20 +26,28 @@ interface AppState {
 
 // const mp4 = "http://10.0.1.140/bstorage/home/chexov/testvideo/LFA.mp4";
 // const mp4 = "http://blender.local/bstorage/datasets/vg_smoke/smoking_scenes/045%20-%20Penelope%20Cruz%20Smoking.mkv.mp4";
-// TODO: dynamic URL
 // const url = 'cruz-smoking.jsonl';
-// this.fetchJsonl(url);
-const url = 'LFA123.mp4.out.json';
-// this.setupPlayer(el, pConfig);
+// const url = 'LFA123.mp4.out.json';
 
 export default class App extends React.Component<AppProps, AppState> {
 
-    state: AppState = {
-        frame : 0,
-        total : 0,
-        ranges : [],
-        selectedRangeIndex : -1
-    };
+    constructor (props: AppProps) {
+        super(props);
+        const parsed = queryString.parse(location.search);
+        console.log(parsed);
+        const {videoUrl, json} = parsed;
+        if (json) {
+            this.fetchJson(json);
+        }
+        this.state = {
+            frame : 0,
+            total : 0,
+            ranges : [],
+            selectedRangeIndex : -1,
+            videoUrl
+        };
+    }
+
 
     private predictions: JsonResult[] = [];
     private saveResults = () => {
@@ -49,13 +59,13 @@ export default class App extends React.Component<AppProps, AppState> {
     updatePrediction = (updated: LabeledRange[]) => {
         console.log("updated", updated);
         for (const range of updated) {
-            for (let i = range.start; i < range.end; i++) {
+            for (let i = range.start; i <= range.end; i++) {
                 const predict: [number, number] = [0, 0];
                 predict[+range.label] = 1;
                 this.predictions[i] = [i, predict];
             }
         }
-        // console.log(this.predictions);
+        console.log(this.predictions);
     };
 
     deletePrediction = (deleted: LabeledRange[]) => {
@@ -67,7 +77,6 @@ export default class App extends React.Component<AppProps, AppState> {
     };
 
     private get currentCaption () {
-
         const prediction = this.predictions[this.state.frame];
         if (!prediction) {
             return;
@@ -76,17 +85,8 @@ export default class App extends React.Component<AppProps, AppState> {
         return `${prediction[1].indexOf(max)}`;
     };
 
-    async fetchJsonl (url: string) {
-        const response = await fetch(url);
-        const jsonlText = await response.text();
-        this.predictions = toJson<JsonResult>(jsonlText);
-        const ranges = await jsonToRanges(this.predictions);
-        this.setState({ranges})
-    }
-
     async fetchJson (url: string) {
-        const response = await fetch(url);
-        const json = await response.json();
+        const json = await fetchJson<JsonResult>(url);
         this.predictions = json;
         const ranges = await jsonToRanges(this.predictions);
         this.setState({ranges});
@@ -163,7 +163,9 @@ export default class App extends React.Component<AppProps, AppState> {
 
     onTimeUpdate = (ts: { frame: number }) => {
         const frame = ts.frame;
-        this.setState({frame});
+        if (frame != this.state.frame) {
+            this.setState({frame});
+        }
     };
 
     videoLoaded = (timeline: { getFrameCount (): number }) => {
@@ -181,7 +183,7 @@ export default class App extends React.Component<AppProps, AppState> {
 
     private fileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files;
-        const results = await readJsonlFile<JsonResult>(fileList[0]);
+        const results = await readJsonFile<JsonResult>(fileList[0]);
         this.predictions = results;
         const ranges = await jsonToRanges(results);
         this.setState({ranges})

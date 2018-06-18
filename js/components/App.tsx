@@ -10,6 +10,8 @@ import SVGStrip from "./SVGStrip";
 import {ChangeEvent} from "react";
 import Player from "./Player";
 import KeyMap from "./KeyMap";
+import {Simulate} from "react-dom/test-utils";
+import select = Simulate.select;
 
 const queryString = require('query-string');
 
@@ -49,7 +51,8 @@ export default class App extends React.Component<AppProps, AppState> {
             total : 0,
             ranges : [],
             selectedRangeIndex : -1,
-            videoUrl
+            videoUrl,
+            csv: csv
         };
     }
 
@@ -313,8 +316,9 @@ export default class App extends React.Component<AppProps, AppState> {
         }
     }
 
-    private csvSelectChange() {
-
+    private csvSelectChange(e: ChangeEvent<HTMLSelectElement>) {
+        this.setState({videoUrl : e.currentTarget.options[e.currentTarget.selectedIndex].text});
+        this.fetchJson(e.currentTarget.value);
     }
 
     render () {
@@ -323,9 +327,10 @@ export default class App extends React.Component<AppProps, AppState> {
         if (csv) {
             csv_select = csv
                 .split('\n')
-                .map((s: string) => s.split(/,\t;/, 2))
+                .map((s: string) => s.split(/[,\t;]/, 2))
                 .map((b: string[]) => '<option value="' + b[1] + '">' + b[0] + '</option>')
                 .reduce((prev: any, curr: any) => prev + curr);
+            console.log(csv_select);
         }
 
         return <div>
@@ -346,8 +351,8 @@ export default class App extends React.Component<AppProps, AppState> {
                 </SVGStrip>
                 : null
             }
-            {csv_select ?
-                <select onChange={this.csvSelectChange}>{csv_select}</select>
+            {csv ?
+                <div><select onChange={this.csvSelectChange}>{csv_select}</select></div>
                 : null
             }
             {!videoUrl &&

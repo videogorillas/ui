@@ -36,7 +36,6 @@ export default class App extends React.Component<AppProps, AppState> {
     constructor (props: AppProps) {
         super(props);
         const parsed = queryString.parse(location.search);
-        console.log(parsed);
         const {videoUrl, json, csv} = parsed;
         if (json) {
             this.fetchJson(json);
@@ -61,7 +60,7 @@ export default class App extends React.Component<AppProps, AppState> {
     };
 
     updatePrediction = (updated: LabeledRange[]) => {
-        console.log("updated", updated);
+        // console.log("updated", updated);
         for (const range of updated) {
             for (let i = range.start; i <= range.end; i++) {
                 const predict: [number, number] = [0, 0];
@@ -69,11 +68,11 @@ export default class App extends React.Component<AppProps, AppState> {
                 this.predictions[i] = [i, predict];
             }
         }
-        console.log(this.predictions);
+        // console.log(this.predictions);
     };
 
     deletePrediction = (deleted: LabeledRange[]) => {
-        console.log("deleted", deleted);
+        // console.log("deleted", deleted);
         const start = deleted[0].start;
         const end = deleted[deleted.length - 1].end;
         this.predictions.fill(undefined, start, end);
@@ -202,98 +201,7 @@ export default class App extends React.Component<AppProps, AppState> {
         this.setState({ranges})
     };
 
-    private findClosestIndex (x: number, ranges: LabeledRange[], m = 0): number {
-        if (ranges.length == 0) {
-            return -1;
-        }
-        if (ranges.length == 1) {
-            return m
-        }
-        let mid = ranges.length / 2 | 0;
-        if (ranges[mid].start > x) {
-            //left half
-            return this.findClosestIndex(x, ranges.slice(0, mid), m)
-        } else {
-            //right half
-            return this.findClosestIndex(x, ranges.slice(mid), mid + m)
-        }
-    }
 
-    private insertNewRange (ranges: LabeledRange[], range: LabeledRange): LabeledRange[] {
-        //closest left range
-        const i = this.findClosestIndex(range.start, ranges);
-        const closest = ranges[i];
-        const next = closest && ranges[i + 1];
-        if (!closest || !next) {
-            ranges.push(range);
-            this.updatePrediction([range]);
-            this.selectRangeIndex(i + 1);
-            return ranges;
-        }
-        const updated = [];
-        // range and closest are same
-        if (closest.start == range.start && range.end == closest.end) {
-            ranges[i] = range;
-            updated.push(range);
-        }
-        // before closest
-        else if (closest.start > range.end) {
-            ranges.unshift(range);
-            this.updatePrediction([range]);
-        }
-        // split closest range
-        else if (closest.start < range.start && range.end < closest.end) {
-            // clone closest as tail
-            const tail = {...closest};
-
-            // set closest end to new range start
-            closest.end = range.start;
-            updated.push(closest);
-
-            // set tail end to new range start
-            tail.start = range.end;
-
-            if (range.end - range.start > 0) {
-                //split ranges on closest index and insert new range and tail
-                ranges.splice(i + 1, 0, range, tail);
-                updated.push(range);
-            } else {
-                //split ranges on closest index and insert tail
-                ranges.splice(i + 1, 0, tail);
-            }
-
-            updated.push(tail);
-            console.log(closest, range, tail, i);
-        }
-        //insert range after closest in the gap between two ranges
-        else if (next && range.start > closest.end && range.end < next.start) {
-            // split ranges on closest index and insert new range
-            ranges.splice(i + 1, 0, range);
-            updated.push(range);
-        }
-        // overlap with next ranges
-        else if (next && range.end > next.start) {
-            //closest right range
-            const j = this.findClosestIndex(range.end, ranges);
-            const nextClosest = ranges[j];
-            const tail = {...nextClosest};
-            tail.start = range.end;
-
-            // overlap left closest
-            if (range.start < closest.end) {
-                closest.end = range.start;
-            }
-
-            //split ranges on closest index, delete overlapped and insert new range and tail
-            const deleted = ranges.splice(i + 1, j - i, range, tail);
-
-            this.deletePrediction(deleted);
-            updated.push(closest, range, tail);
-        }
-        this.updatePrediction(updated);
-        this.selectRangeIndex(i + 1);
-        return ranges;
-    }
 
 
     private onMarkRange = (range: LabeledRange) => {

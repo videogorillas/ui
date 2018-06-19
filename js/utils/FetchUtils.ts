@@ -35,7 +35,7 @@ export function saveFile (blob: Blob, fileName: string) {
     window.URL.revokeObjectURL(url);
 }
 
-export async function fileReader(file: File): Promise<FileReaderProgressEvent> {
+export async function fileReader (file: File): Promise<FileReaderProgressEvent> {
     const reader = new FileReader();
     const result = new Promise<FileReaderProgressEvent>((resolve, reject) => {
         reader.onload = resolve;
@@ -43,4 +43,11 @@ export async function fileReader(file: File): Promise<FileReaderProgressEvent> {
     });
     reader.readAsText(file);
     return await result;
+}
+
+export async function fetchCsv (url: string): Promise<string[][]> {
+    const response = await fetch(url);
+    const csvStr = await response.text();
+    const lines = csvStr.trim().split(/\n/).map((line) => line.split(/,\s?/));
+    return lines;
 }

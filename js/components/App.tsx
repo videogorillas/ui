@@ -1,15 +1,16 @@
 import * as React from 'react';
+import {ChangeEvent} from 'react';
 import './app.css';
 import Ranges from "./Ranges";
 import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs/index";
 import {saveFile} from "../utils/FetchUtils";
 import ClassCaptions from "./ClassCaptions";
-import {JsonResult, jsonToRanges, toJson, readJsonFile, fromJson, fetchJson} from "../utils/JsonlUtils";
+import {fetchJson, fromJson, JsonResult, jsonToRanges, readJsonFile} from "../utils/JsonlUtils";
 import SVGStrip from "./SVGStrip";
-import {ChangeEvent} from "react";
 import Player from "./Player";
 import KeyMap from "./KeyMap";
+import CSVSelect from "./CSVSelect";
 
 const queryString = require('query-string');
 
@@ -23,6 +24,7 @@ interface AppState {
     selectedRangeIndex: number;
     videoUrl?: string;
     jsonUrl?: string;
+    csvUrl?: string;
 }
 
 // const mp4 = "http://10.0.1.140/bstorage/home/chexov/testvideo/LFA.mp4";
@@ -31,21 +33,22 @@ interface AppState {
 // const url = 'LFA123.mp4.out.json';
 
 export default class App extends React.Component<AppProps, AppState> {
-
     constructor (props: AppProps) {
         super(props);
         const parsed = queryString.parse(location.search);
         console.log(parsed);
-        const {videoUrl, json} = parsed;
+        const {videoUrl, json, csv} = parsed;
         if (json) {
             this.fetchJson(json);
         }
+
         this.state = {
             frame : 0,
             total : 0,
             ranges : [],
             selectedRangeIndex : -1,
-            videoUrl
+            videoUrl,
+            csvUrl : csv
         };
     }
 
@@ -315,9 +318,21 @@ export default class App extends React.Component<AppProps, AppState> {
         }
     }
 
+    private csvSelectChange = (sources: string[]) => {
+        this.setState({videoUrl : sources[0]});
+        this.fetchJson(sources[1]);
+    };
+
+
     render () {
-        const {frame, total, ranges, selectedRangeIndex, videoUrl} = this.state;
+        const {frame, total, ranges, selectedRangeIndex, videoUrl, csvUrl} = this.state;
+
         return <div>
+            {csvUrl &&
+            <div>
+                <CSVSelect csvUrl={csvUrl} onSelect={this.csvSelectChange}/>
+            </div>
+            }
             {videoUrl &&
             <div>
                 <Player url={videoUrl} onTimeUpdate={this.onTimeUpdate} frame={frame} onLoad={this.videoLoaded}/>
@@ -335,6 +350,7 @@ export default class App extends React.Component<AppProps, AppState> {
                 </SVGStrip>
                 : null
             }
+
             {!videoUrl &&
 
             <div>

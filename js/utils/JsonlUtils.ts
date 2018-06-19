@@ -1,22 +1,5 @@
-import {fileReader, streamAsyncIterator} from "./FetchUtils";
+import {fileReader} from "./FetchUtils";
 import {LabeledRange} from "../models/Range";
-
-export async function* jsonlIterator (stream: ReadableStream) {
-    let partial = '';
-    for await (const chunk of streamAsyncIterator(stream)) {
-        let utf8 = new TextDecoder('utf-8');
-        const lines = utf8.decode(chunk).split('\n');
-        for (const line of lines) {
-            try {
-                const jline = JSON.parse(partial + line);
-                partial = '';
-                yield jline;
-            } catch (e) {
-                partial += line;
-            }
-        }
-    }
-}
 
 export function toJson<T> (text: string): T[] {
     const lines = text.trim().split('\n');

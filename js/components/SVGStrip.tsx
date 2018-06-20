@@ -6,7 +6,7 @@ import {fromEvent} from "rxjs";
 
 interface StripState {
     markers: LabeledRange[];
-    inOutMarkers: { in?: LabeledRange, out?: LabeledRange };
+    inOutMarkers: LabeledRange[];
     zoom: number;
 }
 
@@ -15,14 +15,14 @@ interface StripProps {
 
     onClick (frame: number): void;
 
-    onMark (marker: LabeledRange): void;
+    onMark (markers: LabeledRange[]): void;
 }
 
 export default class SVGStrip extends React.Component<StripProps, StripState> {
 
     state: StripState = {
         markers : [],
-        inOutMarkers : {},
+        inOutMarkers : [],
         zoom : 1
     };
     private innerG: React.RefObject<any> = React.createRef();
@@ -30,7 +30,6 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
 
 
     componentDidMount () {
-        this.outSvg.current
         const kdown = fromEvent<MouseEvent<Document>>(document, 'keydown');
         kdown.subscribe((e: KeyboardEvent) => {
             const {pointer} = this.props;
@@ -39,10 +38,12 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
             const mark = {start : pointer, end : pointer + 1 / w, label : e.key};
             switch (e.code) {
                 case "KeyI":
-                    inOutMarkers.in = mark;
+                    inOutMarkers[0] = mark;
+                    this.mark(inOutMarkers);
                     break;
                 case "KeyO":
-                    inOutMarkers.out = mark;
+                    inOutMarkers[1] = mark;
+                    this.mark(inOutMarkers);
                     break;
                 case "Equal":
                     this.setState({zoom : Math.min(zoom + 1, 10)});
@@ -50,16 +51,21 @@ export default class SVGStrip extends React.Component<StripProps, StripState> {
                 case "Minus":
                     this.setState({zoom : Math.max(zoom - 1, 1)});
                     return;
-            }
-            if (inOutMarkers.in && inOutMarkers.out) {
-                const start = Math.min(this.state.inOutMarkers.in.start, this.state.inOutMarkers.out.start);
-                const end = Math.max(this.state.inOutMarkers.in.start, this.state.inOutMarkers.out.start);
-                this.props.onMark({start, end, label : "mark"});
-                this.setState({inOutMarkers : {}});
-            } else {
-                this.setState({inOutMarkers});
+                case "Escape":
+                    this.setState({inOutMarkers : []});
+                    return;
             }
         });
+    }
+
+
+    private mark (inOutMarkers: LabeledRange[]) {
+        this.props.onMark(inOutMarkers.filter(x => !!x));
+        if (inOutMarkers[0] && inOutMarkers[1]) {
+            this.setState({inOutMarkers : []});
+        } else {
+            this.setState({inOutMarkers});
+        }
     }
 
     private svgClick = (e: MouseEvent<SVGGElement>) => {

@@ -77,72 +77,114 @@ export default class RangesDataSource {
         const i = this.findClosestIndex(range.start, this.ranges);
         const closest = this.ranges[i];
         const next = closest && this.ranges[i + 1];
+        // 1. no ranges
         if (!closest || !next) {
             this.ranges.push(range);
             this.delegate.update([range]);
             return i + 1;
         }
-        const updated = [];
-        // range and closest are same
-        if (closest.start == range.start && range.end == closest.end) {
-            this.ranges[i] = range;
-            updated.push(range);
-        }
-        // before closest
-        else if (closest.start > range.end) {
+        // 2. before closest
+        if (closest.start > range.end) {
             this.ranges.unshift(range);
-            updated.push(range);
+            this.delegate.update([range]);
+            return i;
         }
-        // split closest range
-        else if (closest.start < range.start && range.end < closest.end) {
-            // clone closest as tail
-            const tail = {...closest};
-
-            // set closest end to new range start
-            closest.end = range.start;
-            updated.push(closest);
-
-            // set tail end to new range start
-            tail.start = range.end;
-
-            if (range.end - range.start > 0) {
-                //split ranges on closest index and insert new range and tail
-                this.ranges.splice(i + 1, 0, range, tail);
-                updated.push(range);
-            } else {
-                //split ranges on closest index and insert tail
-                this.ranges.splice(i + 1, 0, tail);
+        // 3. inside closest
+        const updated = [];
+        const sameStart = closest.start == range.start;
+        const sameEnd = range.end == closest.end;
+        const clone = {...closest};
+        //3.1. same start / same end
+        if (sameStart) {
+            // & same end
+            if (sameEnd) {
+                this.ranges[i] = range;
+                this.delegate.update([range]);
+                return i;
             }
+            // before closest end
+            if (range.end < closest.end) {
+                clone.start = range.end;
+                closest.end = range.end;
+                //delete clone
+                this.delegate.delete([clone]);
+                this.delegate.update([closest]);
+                return i;
+            }
+            // after closest end
+            else {
+                closest.end = range.end;
+                updated.push(closest);
 
-            updated.push(tail);
-            // console.log(closest, range, tail, i);
+                const j = this.findClosestIndex(range.end, this.ranges);
+                if (j > -1) {
+                    const nextClosest = this.ranges[j];
+                    const tail = {...nextClosest};
+                    tail.start = range.end;
+                    this.delegate.delete(this.ranges.splice(i + 1, j - i, tail));
+                    updated.push(tail);
+                }
+                this.delegate.update(updated);
+                return i;
+            }
         }
-        //insert range after closest in the gap between two ranges
-        else if (next && range.start > closest.end && range.end < next.start) {
-            // split ranges on closest index and insert new range
-            this.ranges.splice(i + 1, 0, range);
-            updated.push(range);
-        }
-        // overlap with next ranges
-        else if (next && range.end > next.start) {
-            //closest right range
-            const j = this.findClosestIndex(range.end, this.ranges);
-            const nextClosest = this.ranges[j];
-            const tail = {...nextClosest};
-            tail.start = range.end;
-
-            // overlap left closest
-            if (range.start < closest.end) {
+        //3.2. after closest start
+        else if (closest.start < range.start) {
+            if (sameEnd) {
+                clone.end = range.start;
+                closest.start = range.start;
+                this.delegate.delete([clone]);
+                return i;
+            }
+            // before closest end
+            if (range.end < closest.end) {
+                // set closest end to new range start
                 closest.end = range.start;
+                // set clone end to new range start
+                clone.start = range.end;
+
+                updated.push(closest);
+                if (range.end - range.start > 0) {
+                    //split ranges on closest index and insert new range and clone
+                    this.ranges.splice(i + 1, 0, range, clone);
+                    updated.push(range);
+                } else {
+                    //split ranges on closest index and insert clone
+                    this.ranges.splice(i + 1, 0, clone);
+                }
+                updated.push(clone);
+                this.delegate.update(updated);
+            }
+            //after closest end
+            else {
+                // and there is next range
+                if (next) {
+                    // insert range after closest in the gap between two ranges
+                    if (range.start > closest.end && range.end < next.start) {
+                        // split ranges on closest index and insert new range
+                        this.ranges.splice(i + 1, 0, range);
+                        updated.push(range);
+                    }
+                    else if (range.end > next.start) {
+                        //closest right range
+                        const j = this.findClosestIndex(range.end, this.ranges);
+                        const nextClosest = this.ranges[j];
+                        const tail = {...nextClosest};
+                        tail.start = range.end;
+
+                        // overlap left closest
+                        if (range.start < closest.end) {
+                            closest.end = range.start;
+                        }
+                        //split ranges on closest index, delete overlapped and insert new range and clone
+                        this.delegate.delete(this.ranges.splice(i + 1, j - i, range, tail));
+                        updated.push(closest, range, tail);
+                    }
+                }
             }
 
-            //split ranges on closest index, delete overlapped and insert new range and tail
-            this.delegate.delete(this.ranges.splice(i + 1, j - i, range, tail));
-
-            updated.push(closest, range, tail);
         }
         this.delegate.update(updated);
-        // console.log('ranges', this.ranges);
         return i + 1;
     }
 

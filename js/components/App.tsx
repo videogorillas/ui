@@ -178,13 +178,31 @@ export default class App extends React.Component<AppProps, AppState> {
     };
 
 
-    private onMarkRange = (range: LabeledRange) => {
-        const {total} = this.state;
-        const start = Math.round(range.start * total);
-        const end = Math.round(range.end * total);
-        const i = this.rangeMgr.insert({start, end, label : "new"});
+    private onMarkRange = (markers: LabeledRange[]) => {
+        let {selectedRangeIndex : i, total, ranges} = this.state;
+        const starts = markers.map(m => Math.round(m.start * total));
+        const range1 = {start : Math.min(...starts), end : Math.max(...starts), label : "new"};
+        if (i == -1 && markers.length == 2) {
+            //no selected
+            i = this.rangeMgr.insert(range1);
+        } else if (i > -1) {
+            //change selected
+            const range = ranges[i];
+            const w = range.end - range.start;
+            const m = w / 2 | 0;
+            const mid = range.start + m;
+            //edit in point
+            if (range1.end < mid) {
+                range1.end = range.end;
+            }
+            //edit out point
+            else {
+                range1.start = range.start;
+            }
+            range1.label = range.label;
+            i = this.rangeMgr.insert(range1);
+        }
         this.setState({ranges : this.rangeMgr.ranges, selectedRangeIndex : i});
-        // console.log("insertNewRange", ranges);
     };
 
     private selectRangeIndex = (i: number) => {

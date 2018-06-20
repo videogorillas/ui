@@ -10,8 +10,8 @@ import SVGStrip from "./SVGStrip";
 import Player from "./Player";
 import KeyMap from "./KeyMap";
 import CSVSelect from "./CSVSelect";
-import {default as RangesManager, JsonResult} from "../models/RangesManager";
-import PredictionsManager from "../models/PredictionsManager";
+import {default as RangesDataSource, JsonResult} from "../models/RangesDataSource";
+import PredictionsDataSource from "../models/PredictionsDataSource";
 
 const queryString = require('query-string');
 
@@ -34,8 +34,8 @@ interface AppState {
 // const url = 'LFA123.mp4.out.json';
 
 export default class App extends React.Component<AppProps, AppState> {
-    private rangeMgr: RangesManager;
-    private predictMgr: PredictionsManager;
+    private rangeMgr: RangesDataSource;
+    private predictMgr: PredictionsDataSource;
 
     constructor (props: AppProps) {
         super(props);
@@ -44,8 +44,8 @@ export default class App extends React.Component<AppProps, AppState> {
         if (json) {
             this.fetchJson(json);
         }
-        this.rangeMgr = new RangesManager();
-        this.predictMgr = new PredictionsManager();
+        this.rangeMgr = new RangesDataSource();
+        this.predictMgr = new PredictionsDataSource();
         this.rangeMgr.delegate = this.predictMgr;
         this.state = {
             frame : 0,
@@ -71,7 +71,7 @@ export default class App extends React.Component<AppProps, AppState> {
         try {
             const json = await fetchJson<JsonResult>(url);
             this.predictMgr.predictions = json;
-            const ranges = await this.rangeMgr.fromJson(this.predictMgr.predictions);
+            const ranges = await this.rangeMgr.fromJson(json);
             this.setState({ranges});
         } catch (e) {
             console.log(e);

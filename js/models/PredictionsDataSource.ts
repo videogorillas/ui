@@ -3,7 +3,7 @@ import {LabeledRange} from "./Range";
 import {saveFile} from "../utils/FetchUtils";
 import {fromJson} from "../utils/JsonlUtils";
 
-export default class PredictionsManager {
+export default class PredictionsDataSource {
     predictions: JsonResult[] = [];
 
     constructor (predictions: JsonResult[] = []) {

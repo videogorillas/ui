@@ -8,7 +8,7 @@ export interface RangesDelegate {
     delete (deleted: LabeledRange[]): void;
 }
 
-export default class RangesManager {
+export default class RangesDataSource {
     ranges: LabeledRange[];
     delegate: RangesDelegate;
 

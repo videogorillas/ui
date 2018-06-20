@@ -4,14 +4,14 @@ import './app.css';
 import Ranges from "./Ranges";
 import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs/index";
-import {saveFile} from "../utils/FetchUtils";
 import ClassCaptions from "./ClassCaptions";
-import {fetchJson, fromJson, readJsonFile} from "../utils/JsonlUtils";
+import {fetchJson, readJsonFile} from "../utils/JsonlUtils";
 import SVGStrip from "./SVGStrip";
 import Player from "./Player";
 import KeyMap from "./KeyMap";
 import CSVSelect from "./CSVSelect";
-import {JsonResult, default as RangesManager} from "../models/RangesManager";
+import {default as RangesManager, JsonResult} from "../models/RangesManager";
+import PredictionsManager from "../models/PredictionsManager";
 
 const queryString = require('query-string');
 
@@ -34,8 +34,8 @@ interface AppState {
 // const url = 'LFA123.mp4.out.json';
 
 export default class App extends React.Component<AppProps, AppState> {
-    private manager: RangesManager;
-    private predictions: JsonResult[] = [];
+    private rangeMgr: RangesManager;
+    private predictMgr: PredictionsManager;
 
     constructor (props: AppProps) {
         super(props);
@@ -44,7 +44,9 @@ export default class App extends React.Component<AppProps, AppState> {
         if (json) {
             this.fetchJson(json);
         }
-        this.manager = new RangesManager();
+        this.rangeMgr = new RangesManager();
+        this.predictMgr = new PredictionsManager();
+        this.rangeMgr.delegate = this.predictMgr;
         this.state = {
             frame : 0,
             total : 0,
@@ -56,34 +58,8 @@ export default class App extends React.Component<AppProps, AppState> {
     }
 
 
-    private saveResults = () => {
-        const jsonl = fromJson(this.predictions);
-        const blob = new Blob([jsonl], {type : 'application/json'});
-        saveFile(blob, 'test.jsonl');
-    };
-
-    updatePrediction = (updated: LabeledRange[]) => {
-        // console.log("updated", updated);
-        for (const range of updated) {
-            for (let i = range.start; i <= range.end; i++) {
-                const predict: [number, number] = [0, 0];
-                predict[+range.label] = 1;
-                this.predictions[i] = [i, predict];
-            }
-        }
-        // console.log(this.predictions);
-    };
-
-    deletePrediction = (deleted: LabeledRange[]) => {
-        // console.log("deleted", deleted);
-        const start = deleted[0].start;
-        const end = deleted[deleted.length - 1].end;
-        this.predictions.fill(undefined, start, end);
-        // console.log(this.predictions);
-    };
-
     private get currentCaption () {
-        const prediction = this.predictions[this.state.frame];
+        const prediction = this.predictMgr.predictions[this.state.frame];
         if (!prediction) {
             return;
         }
@@ -94,8 +70,8 @@ export default class App extends React.Component<AppProps, AppState> {
     async fetchJson (url: string) {
         try {
             const json = await fetchJson<JsonResult>(url);
-            this.predictions = json;
-            const ranges = await this.manager.fromJson(this.predictions);
+            this.predictMgr.predictions = json;
+            const ranges = await this.rangeMgr.fromJson(this.predictMgr.predictions);
             this.setState({ranges});
         } catch (e) {
             console.log(e);
@@ -142,7 +118,7 @@ export default class App extends React.Component<AppProps, AppState> {
                     this.setState({selectedRangeIndex : -1});
                     return;
                 case "KeyF":
-                    this.setState({selectedRangeIndex : this.manager.closest(frame)});
+                    this.setState({selectedRangeIndex : this.rangeMgr.closest(frame)});
                     return;
                 case "Digit1":
                 case "Digit2":
@@ -163,16 +139,14 @@ export default class App extends React.Component<AppProps, AppState> {
     }
 
     private setClass (key: string) {
-        let range: LabeledRange;
         let {selectedRangeIndex, frame} = this.state;
         if (selectedRangeIndex > -1) {
-            range = this.manager.setLabel(selectedRangeIndex, key);
+            this.rangeMgr.setLabel(selectedRangeIndex, key);
         } else {
-            range = {start : frame, end : frame + 1, label : key};
-            this.manager.insert(range);
+            const range = {start : frame, end : frame + 1, label : key};
+            this.rangeMgr.insert(range);
         }
-        this.updatePrediction([range]);
-        this.setState({ranges : this.manager.ranges, selectedRangeIndex : -1});
+        this.setState({ranges : this.rangeMgr.ranges, selectedRangeIndex : -1});
     }
 
     onTimeUpdate = (ts: { frame: number }) => {
@@ -198,8 +172,8 @@ export default class App extends React.Component<AppProps, AppState> {
     private fileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
         const fileList = e.target.files;
         const results = await readJsonFile<JsonResult>(fileList[0]);
-        this.predictions = results;
-        const ranges = await this.manager.fromJson(results);
+        this.predictMgr.predictions = results;
+        const ranges = await this.rangeMgr.fromJson(results);
         this.setState({ranges})
     };
 
@@ -208,10 +182,8 @@ export default class App extends React.Component<AppProps, AppState> {
         const {total} = this.state;
         const start = Math.round(range.start * total);
         const end = Math.round(range.end * total);
-        const i = this.manager.insert({start, end, label : "new"});
-        this.updatePrediction(this.manager.updated);
-        this.deletePrediction(this.manager.deleted);
-        this.setState({ranges : this.manager.ranges, selectedRangeIndex : i});
+        const i = this.rangeMgr.insert({start, end, label : "new"});
+        this.setState({ranges : this.rangeMgr.ranges, selectedRangeIndex : i});
         // console.log("insertNewRange", ranges);
     };
 
@@ -222,7 +194,7 @@ export default class App extends React.Component<AppProps, AppState> {
     private deleteSelectedRange () {
         let {selectedRangeIndex : i, ranges} = this.state;
         if (i >= 0) {
-            this.deletePrediction(this.manager.delete(i));
+            this.rangeMgr.delete(i);
             this.setState({selectedRangeIndex : -1, ranges});
         }
     }
@@ -273,15 +245,15 @@ export default class App extends React.Component<AppProps, AppState> {
 
             </div>
             }
-            {!this.predictions.length &&
+            {!this.predictMgr.predictions.length &&
             <div>
                 <label htmlFor="fileInput">Choose <b>json or jsonl</b> file <input type="file" id="fileInput"
                                                                                    onChange={this.fileUpload}/></label>
             </div>
             }
-            {!!this.predictions.length &&
+            {!!this.predictMgr.predictions.length &&
             <div>
-                <button onClick={this.saveResults}>Save results</button>
+                <button onClick={this.predictMgr.saveAsJsonl}>Save results</button>
             </div>
             }
             {videoUrl &&

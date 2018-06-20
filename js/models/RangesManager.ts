@@ -2,10 +2,15 @@ import {LabeledRange} from "./Range";
 
 export type JsonResult = [number, [number, number]];
 
+export interface RangesDelegate {
+    update (updated: LabeledRange[]): void;
+
+    delete (deleted: LabeledRange[]): void;
+}
+
 export default class RangesManager {
     ranges: LabeledRange[];
-    updated: LabeledRange[];
-    deleted: LabeledRange[];
+    delegate: RangesDelegate;
 
     constructor (ranges: LabeledRange[] = []) {
         this.ranges = ranges;
@@ -64,19 +69,17 @@ export default class RangesManager {
     }
 
     delete (index: number) {
-        return this.ranges.splice(index, 1);
+        this.delegate.delete(this.ranges.splice(index, 1));
     }
 
     insert (range: LabeledRange): number {
-        this.deleted = [];
-        this.updated = [];
         //closest left range
         const i = this.findClosestIndex(range.start, this.ranges);
         const closest = this.ranges[i];
         const next = closest && this.ranges[i + 1];
         if (!closest || !next) {
             this.ranges.push(range);
-            this.updated = [range];
+            this.delegate.update([range]);
             return i + 1;
         }
         const updated = [];
@@ -134,17 +137,18 @@ export default class RangesManager {
             }
 
             //split ranges on closest index, delete overlapped and insert new range and tail
-            this.deleted = this.ranges.splice(i + 1, j - i, range, tail);
+            this.delegate.delete(this.ranges.splice(i + 1, j - i, range, tail));
 
             updated.push(closest, range, tail);
         }
-        this.updated = updated;
-        console.log('updated', this.updated, 'deleted', this.deleted, 'ranges', this.ranges);
+        this.delegate.update(updated);
+        // console.log('ranges', this.ranges);
         return i + 1;
     }
 
     setLabel (i: number, label: string) {
         this.ranges[i].label = label;
+        this.delegate.update([this.ranges[i]]);
         return this.ranges[i];
     }
 }

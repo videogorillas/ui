@@ -1,4 +1,4 @@
-export interface Range {
+interface Range {
     start: number;
     end: number;
 }

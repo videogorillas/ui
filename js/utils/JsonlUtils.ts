@@ -44,36 +44,3 @@ export async function readJsonFile<T> (file: File): Promise<T[]> {
     const text = await readTextFile(file);
     return parseResponse(text);
 }
-
-export type JsonResult = [number, [number, number]];
-
-export async function jsonToRanges (jsonIterator: AsyncIterableIterator<JsonResult>) {
-    const ranges = [];
-    for await (const item of jsonIterator) {
-        let range: LabeledRange;
-        const predictions = item[1];
-        const max = Math.max(...predictions);
-        const index = predictions.indexOf(max);
-        if (!ranges.length) {
-            range = {
-                start : item[0],
-                end : item[0] + 1,
-                label : `${index}`
-            };
-            ranges.push(range);
-        } else {
-            range = ranges[ranges.length - 1];
-            if (`${index}` === range.label) {
-                range.end = item[0] + 1;
-            } else {
-                range = {
-                    start : item[0],
-                    end : item[0] + 1,
-                    label : `${index}`
-                };
-                ranges.push(range);
-            }
-        }
-    }
-    return ranges;
-}

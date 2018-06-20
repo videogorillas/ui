@@ -1,6 +1,8 @@
 import {LabeledRange} from "./Range";
 
-class RangesManager {
+export type JsonResult = [number, [number, number]];
+
+export default class RangesManager {
     ranges: LabeledRange[];
     updated: LabeledRange[];
     deleted: LabeledRange[];
@@ -9,7 +11,40 @@ class RangesManager {
         this.ranges = ranges;
     }
 
+    async fromJson (jsonIterator: AsyncIterableIterator<JsonResult>) {
+        this.ranges = [];
+        for await (const item of jsonIterator) {
+            let range: LabeledRange;
+            const predictions = item[1];
+            const max = Math.max(...predictions);
+            const index = predictions.indexOf(max);
+            if (!this.ranges.length) {
+                range = {
+                    start : item[0],
+                    end : item[0] + 1,
+                    label : `${index}`
+                };
+                this.ranges.push(range);
+            } else {
+                range = this.ranges[this.ranges.length - 1];
+                if (`${index}` === range.label) {
+                    range.end = item[0] + 1;
+                } else {
+                    range = {
+                        start : item[0],
+                        end : item[0] + 1,
+                        label : `${index}`
+                    };
+                    this.ranges.push(range);
+                }
+            }
+        }
+        return this.ranges;
+    }
 
+    closest (x: number): number {
+        return this.findClosestIndex(x, [...this.ranges]);
+    }
 
     private findClosestIndex (x: number, ranges: LabeledRange[], m = 0): number {
         if (ranges.length == 0) {
@@ -28,7 +63,11 @@ class RangesManager {
         }
     }
 
-    insertNewRange (range: LabeledRange): LabeledRange[] {
+    delete (index: number) {
+        return this.ranges.splice(index, 1);
+    }
+
+    insert (range: LabeledRange): number {
         this.deleted = [];
         this.updated = [];
         //closest left range
@@ -38,7 +77,7 @@ class RangesManager {
         if (!closest || !next) {
             this.ranges.push(range);
             this.updated = [range];
-            return this.ranges;
+            return i + 1;
         }
         const updated = [];
         // range and closest are same
@@ -100,6 +139,12 @@ class RangesManager {
             updated.push(closest, range, tail);
         }
         this.updated = updated;
-        return this.ranges;
+        console.log('updated', this.updated, 'deleted', this.deleted, 'ranges', this.ranges);
+        return i + 1;
+    }
+
+    setLabel (i: number, label: string) {
+        this.ranges[i].label = label;
+        return this.ranges[i];
     }
 }

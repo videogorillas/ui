@@ -6,11 +6,12 @@ import {LabeledRange} from "../models/Range";
 import {fromEvent} from "rxjs/index";
 import {saveFile} from "../utils/FetchUtils";
 import ClassCaptions from "./ClassCaptions";
-import {fetchJson, fromJson, JsonResult, jsonToRanges, readJsonFile} from "../utils/JsonlUtils";
+import {fetchJson, fromJson, readJsonFile} from "../utils/JsonlUtils";
 import SVGStrip from "./SVGStrip";
 import Player from "./Player";
 import KeyMap from "./KeyMap";
 import CSVSelect from "./CSVSelect";
+import {JsonResult, default as RangesManager} from "../models/RangesManager";
 
 const queryString = require('query-string');
 
@@ -33,6 +34,9 @@ interface AppState {
 // const url = 'LFA123.mp4.out.json';
 
 export default class App extends React.Component<AppProps, AppState> {
+    private manager: RangesManager;
+    private predictions: JsonResult[] = [];
+
     constructor (props: AppProps) {
         super(props);
         const parsed = queryString.parse(location.search);
@@ -40,7 +44,7 @@ export default class App extends React.Component<AppProps, AppState> {
         if (json) {
             this.fetchJson(json);
         }
-
+        this.manager = new RangesManager();
         this.state = {
             frame : 0,
             total : 0,
@@ -52,7 +56,6 @@ export default class App extends React.Component<AppProps, AppState> {
     }
 
 
-    private predictions: JsonResult[] = [];
     private saveResults = () => {
         const jsonl = fromJson(this.predictions);
         const blob = new Blob([jsonl], {type : 'application/json'});
@@ -92,7 +95,7 @@ export default class App extends React.Component<AppProps, AppState> {
         try {
             const json = await fetchJson<JsonResult>(url);
             this.predictions = json;
-            const ranges = await jsonToRanges(this.predictions);
+            const ranges = await this.manager.fromJson(this.predictions);
             this.setState({ranges});
         } catch (e) {
             console.log(e);
@@ -116,7 +119,7 @@ export default class App extends React.Component<AppProps, AppState> {
 
         kdown.subscribe((e: KeyboardEvent) => {
             // console.log('code', e.code, 'key', e.key);
-            let {frame, ranges} = this.state;
+            let {frame} = this.state;
             let step = 0;
             switch (e.code) {
                 case "ArrowRight":
@@ -130,16 +133,16 @@ export default class App extends React.Component<AppProps, AppState> {
                     this.deleteSelectedRange();
                     return;
                 case "Enter":
-                    if (e.target.id === "videoUrl") {
-                        this.setState({videoUrl : e.target.value});
+                    const target = e.target as HTMLInputElement;
+                    if (target.id === "videoUrl") {
+                        this.setState({videoUrl : target.value});
                     }
                     return;
                 case "Escape":
                     this.setState({selectedRangeIndex : -1});
                     return;
                 case "KeyF":
-                    const selectedRangeIndex = this.findClosestIndex(frame, ranges);
-                    this.setState({selectedRangeIndex});
+                    this.setState({selectedRangeIndex : this.manager.closest(frame)});
                     return;
                 case "Digit1":
                 case "Digit2":
@@ -161,16 +164,15 @@ export default class App extends React.Component<AppProps, AppState> {
 
     private setClass (key: string) {
         let range: LabeledRange;
-        let {ranges, selectedRangeIndex, frame} = this.state;
+        let {selectedRangeIndex, frame} = this.state;
         if (selectedRangeIndex > -1) {
-            range = ranges[selectedRangeIndex];
-            range.label = key;
+            range = this.manager.setLabel(selectedRangeIndex, key);
         } else {
             range = {start : frame, end : frame + 1, label : key};
-            ranges = this.insertNewRange(ranges, range);
+            this.manager.insert(range);
         }
         this.updatePrediction([range]);
-        this.setState({ranges, selectedRangeIndex : -1});
+        this.setState({ranges : this.manager.ranges, selectedRangeIndex : -1});
     }
 
     onTimeUpdate = (ts: { frame: number }) => {
@@ -197,20 +199,20 @@ export default class App extends React.Component<AppProps, AppState> {
         const fileList = e.target.files;
         const results = await readJsonFile<JsonResult>(fileList[0]);
         this.predictions = results;
-        const ranges = await jsonToRanges(results);
+        const ranges = await this.manager.fromJson(results);
         this.setState({ranges})
     };
-
-
 
 
     private onMarkRange = (range: LabeledRange) => {
         const {total} = this.state;
         const start = Math.round(range.start * total);
         const end = Math.round(range.end * total);
-        const ranges = this.insertNewRange([...this.state.ranges], {start, end, label : "new"});
-        console.log("insertNewRange", ranges);
-        this.setState({ranges});
+        const i = this.manager.insert({start, end, label : "new"});
+        this.updatePrediction(this.manager.updated);
+        this.deletePrediction(this.manager.deleted);
+        this.setState({ranges : this.manager.ranges, selectedRangeIndex : i});
+        // console.log("insertNewRange", ranges);
     };
 
     private selectRangeIndex = (i: number) => {
@@ -220,8 +222,7 @@ export default class App extends React.Component<AppProps, AppState> {
     private deleteSelectedRange () {
         let {selectedRangeIndex : i, ranges} = this.state;
         if (i >= 0) {
-            const deleted = ranges.splice(i, 1);
-            this.deletePrediction(deleted);
+            this.deletePrediction(this.manager.delete(i));
             this.setState({selectedRangeIndex : -1, ranges});
         }
     }
